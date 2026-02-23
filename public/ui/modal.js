@@ -167,7 +167,7 @@ const ModalManager = (() => {
     if (!metrics) {
       document.getElementById('insights-loading').style.display = 'none';
       document.getElementById('insights-content').innerHTML =
-        '<p style="color:var(--text-muted);">동선 메트릭이 없습니다. 공정 스테이션을 배치하고 동선을 연결해주세요.</p>';
+        '<p style="color:var(--text-muted);">동선 메트릭이 없습니다. 장비를 배치하고 공정 탭에서 태스크를 추가해주세요.</p>';
       return;
     }
 

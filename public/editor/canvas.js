@@ -1,6 +1,6 @@
 /**
  * CanvasEditor — Konva Stage, 레이어, 그리드, 줌/팬
- * 그리드: 10cm 단위 (5px), 1m 단위 굵은선 + 숫자 표기
+ * 10m x 10m, 1m 단위 격자, 10cm 스냅
  */
 const CanvasEditor = (() => {
   let stage, gridLayer, objectLayer, flowLayer, uiLayer;
@@ -9,11 +9,16 @@ const CanvasEditor = (() => {
   const MAX_SCALE = 5;
 
   const PPM = 50;            // 50px = 1m
-  const CELL = PPM / 10;     // 5px = 10cm (스냅 단위)
-  const MAJOR = PPM;          // 50px = 1m (굵은선 + 숫자)
-  const HALF = PPM / 2;       // 25px = 50cm (중간선)
+  const SNAP = PPM / 10;     // 5px = 10cm (스냅 단위)
+  const GRID_M = 10;         // 10m x 10m
+  const CANVAS_PX = PPM * GRID_M; // 500px
 
   function init() {
+    // 레이아웃 크기를 10m x 10m로 설정
+    const state = App.getState();
+    state.layout.canvasWidth = CANVAS_PX;
+    state.layout.canvasHeight = CANVAS_PX;
+
     const container = document.getElementById('konva-container');
     const rect = container.getBoundingClientRect();
 
@@ -49,91 +54,52 @@ const CanvasEditor = (() => {
   function drawGrid() {
     gridLayer.destroyChildren();
 
-    const layout = App.getState().layout;
-    const w = layout.canvasWidth;
-    const h = layout.canvasHeight;
+    const w = CANVAS_PX;
+    const h = CANVAS_PX;
 
     // 배경
     gridLayer.add(new Konva.Rect({
       x: 0, y: 0, width: w, height: h,
-      fill: '#1a1d27',
+      fill: '#ffffff',
     }));
 
-    // ── 세로선 ──
-    for (let x = 0; x <= w; x += CELL) {
-      const isMajor = x % MAJOR === 0;
-      const isHalf  = x % HALF === 0;
-
-      let stroke, strokeWidth;
-      if (isMajor) {
-        stroke = '#3d4260';
-        strokeWidth = 1.2;
-      } else if (isHalf) {
-        stroke = '#2a2f44';
-        strokeWidth = 0.8;
-      } else {
-        stroke = '#1e2236';
-        strokeWidth = 0.4;
-      }
-
+    // 1m 단위 세로 점선 + 숫자
+    for (let m = 0; m <= GRID_M; m++) {
+      const x = m * PPM;
       gridLayer.add(new Konva.Line({
         points: [x, 0, x, h],
-        stroke, strokeWidth,
+        stroke: '#c8bfb5',
+        strokeWidth: 1,
+        dash: [4, 4],
       }));
-
-      // 1m 마다 숫자 (상단)
-      if (isMajor && x > 0) {
-        gridLayer.add(new Konva.Text({
-          x: x + 3,
-          y: 3,
-          text: (x / PPM).toFixed(0) + 'm',
-          fontSize: 10,
-          fill: '#556',
-        }));
-      }
+      gridLayer.add(new Konva.Text({
+        x: x + 3,
+        y: 3,
+        text: m + 'm',
+        fontSize: 10,
+        fill: '#8a7e72',
+      }));
     }
 
-    // ── 가로선 ──
-    for (let y = 0; y <= h; y += CELL) {
-      const isMajor = y % MAJOR === 0;
-      const isHalf  = y % HALF === 0;
-
-      let stroke, strokeWidth;
-      if (isMajor) {
-        stroke = '#3d4260';
-        strokeWidth = 1.2;
-      } else if (isHalf) {
-        stroke = '#2a2f44';
-        strokeWidth = 0.8;
-      } else {
-        stroke = '#1e2236';
-        strokeWidth = 0.4;
-      }
-
+    // 1m 단위 가로 점선 + 숫자
+    for (let m = 0; m <= GRID_M; m++) {
+      const y = m * PPM;
       gridLayer.add(new Konva.Line({
         points: [0, y, w, y],
-        stroke, strokeWidth,
+        stroke: '#c8bfb5',
+        strokeWidth: 1,
+        dash: [4, 4],
       }));
-
-      // 1m 마다 숫자 (좌측)
-      if (isMajor && y > 0) {
+      if (m > 0) {
         gridLayer.add(new Konva.Text({
           x: 3,
           y: y + 3,
-          text: (y / PPM).toFixed(0) + 'm',
+          text: m + 'm',
           fontSize: 10,
-          fill: '#556',
+          fill: '#8a7e72',
         }));
       }
     }
-
-    // 원점 표시
-    gridLayer.add(new Konva.Text({
-      x: 3, y: 3,
-      text: '0',
-      fontSize: 10,
-      fill: '#556',
-    }));
 
     gridLayer.batchDraw();
   }
@@ -141,7 +107,6 @@ const CanvasEditor = (() => {
   function setupZoomPan() {
     const container = stage.container();
 
-    // 마우스휠 줌
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
       const oldScale = stage.scaleX();
@@ -168,7 +133,6 @@ const CanvasEditor = (() => {
       updateZoomInfo();
     });
 
-    // 스페이스바 + 드래그 = 팬
     let isPanning = false;
     let spaceDown = false;
     let lastPos = null;
@@ -187,7 +151,6 @@ const CanvasEditor = (() => {
       }
     });
 
-    // 미들 클릭 팬
     container.addEventListener('mousedown', (e) => {
       if (spaceDown || e.button === 1) {
         isPanning = true;
@@ -198,11 +161,9 @@ const CanvasEditor = (() => {
     });
     window.addEventListener('mousemove', (e) => {
       if (!isPanning || !lastPos) return;
-      const dx = e.clientX - lastPos.x;
-      const dy = e.clientY - lastPos.y;
       stage.position({
-        x: stage.x() + dx,
-        y: stage.y() + dy,
+        x: stage.x() + (e.clientX - lastPos.x),
+        y: stage.y() + (e.clientY - lastPos.y),
       });
       lastPos = { x: e.clientX, y: e.clientY };
       stage.batchDraw();
@@ -232,7 +193,7 @@ const CanvasEditor = (() => {
 
   // 10cm (5px) 단위 스냅
   function snapToGrid(val) {
-    return Math.round(val / CELL) * CELL;
+    return Math.round(val / SNAP) * SNAP;
   }
 
   function getStage() { return stage; }
@@ -240,7 +201,7 @@ const CanvasEditor = (() => {
   function getFlowLayer() { return flowLayer; }
   function getUILayer() { return uiLayer; }
   function getScale() { return scale; }
-  function getGridSize() { return CELL; }
+  function getGridSize() { return SNAP; }
 
   function getCanvasPointer() {
     const pos = stage.getPointerPosition();

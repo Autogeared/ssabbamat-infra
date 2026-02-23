@@ -2,27 +2,27 @@
  * ObjectFactory — 객체 생성, Konva 노드 매핑
  */
 const ObjectFactory = (() => {
-  // 타입별 기본 크기, 색상
+  // 타입별 기본 크기 (50px = 1m 기준), 색상
   const DEFAULTS = {
-    wall:       { w: 200, h: 10, color: '#6B7280', label: '벽' },
-    door:       { w: 60, h: 10, color: '#10B981', label: '문' },
-    window:     { w: 80, h: 10, color: '#93C5FD', label: '창문' },
-    counter:    { w: 150, h: 60, color: '#8B5CF6', label: '카운터' },
-    'gas-range':{ w: 90, h: 60, color: '#EF4444', label: '가스레인지' },
-    sink:       { w: 60, h: 50, color: '#3B82F6', label: '싱크대' },
-    'prep-table':{ w: 120, h: 60, color: '#F59E0B', label: '조리대' },
-    fridge:     { w: 80, h: 70, color: '#06B6D4', label: '냉장고' },
-    storage:    { w: 80, h: 60, color: '#6B7280', label: '보관함' },
+    wall:       { w: 200, h: 0, color: '#222222', label: '벽' },
+    door:       { w: 50, h: 5, color: '#7DB87D', label: '문' },
+    window:     { w: 50, h: 5, color: '#89AFC4', label: '창문' },
+    counter:    { w: 150, h: 50, color: '#A67C52', label: '카운터' },
+    'gas-range':{ w: 50, h: 50, color: '#D97756', label: '가스레인지' },
+    sink:       { w: 50, h: 50, color: '#6A9AB5', label: '싱크대' },
+    'prep-table':{ w: 100, h: 50, color: '#C4976A', label: '조리대' },
+    fridge:     { w: 50, h: 50, color: '#5B8FA8', label: '냉장고' },
+    storage:    { w: 50, h: 50, color: '#7A6E62', label: '보관함' },
   };
 
   const STATION_META = {
-    'order-receive':  { label: '주문접수', color: '#3B82F6', defaultTime: 30 },
-    'prep':           { label: '준비',     color: '#8B5CF6', defaultTime: 60 },
-    'cook':           { label: '조리',     color: '#EF4444', defaultTime: 120 },
-    'plate':          { label: '플레이팅', color: '#F59E0B', defaultTime: 45 },
-    'pack':           { label: '포장',     color: '#10B981', defaultTime: 30 },
-    'pickup':         { label: '픽업',     color: '#06B6D4', defaultTime: 15 },
-    'delivery-out':   { label: '배달출고', color: '#6366F1', defaultTime: 20 },
+    'order-receive':  { label: '주문접수', color: '#6A9AB5', defaultTime: 30 },
+    'prep':           { label: '준비',     color: '#9B7DB8', defaultTime: 60 },
+    'cook':           { label: '조리',     color: '#D97756', defaultTime: 120 },
+    'plate':          { label: '플레이팅', color: '#E5A84B', defaultTime: 45 },
+    'pack':           { label: '포장',     color: '#7DB87D', defaultTime: 30 },
+    'pickup':         { label: '픽업',     color: '#5B8FA8', defaultTime: 15 },
+    'delivery-out':   { label: '배달출고', color: '#8B7EC8', defaultTime: 20 },
   };
 
   let transformer = null;
@@ -31,9 +31,9 @@ const ObjectFactory = (() => {
     // Transformer for selection
     transformer = new Konva.Transformer({
       rotateEnabled: true,
-      borderStroke: '#3B82F6',
-      anchorStroke: '#3B82F6',
-      anchorFill: '#fff',
+      borderStroke: '#D97756',
+      anchorStroke: '#D97756',
+      anchorFill: '#ece5de',
       anchorSize: 8,
       padding: 2,
     });
@@ -49,8 +49,13 @@ const ObjectFactory = (() => {
     if (obj.type === 'station') {
       return createStationNode(obj, layer);
     }
+    if (obj.type === 'wall') {
+      return createWallNode(obj, layer);
+    }
 
     const def = DEFAULTS[obj.type] || DEFAULTS.counter;
+    const w = obj.width || def.w;
+    const h = obj.height || def.h;
     const group = new Konva.Group({
       id: obj.id,
       x: obj.x,
@@ -60,17 +65,19 @@ const ObjectFactory = (() => {
     });
 
     const rect = new Konva.Rect({
-      width: obj.width || def.w,
-      height: obj.height || def.h,
+      width: w,
+      height: h,
       fill: obj.color || def.color,
-      cornerRadius: 4,
+      cornerRadius: 0,
       opacity: 0.85,
+      stroke: '#00000022',
+      strokeWidth: 1,
     });
 
     const text = new Konva.Text({
       text: obj.label || def.label,
-      width: obj.width || def.w,
-      height: obj.height || def.h,
+      width: w,
+      height: h,
       align: 'center',
       verticalAlign: 'middle',
       fontSize: 11,
@@ -82,15 +89,16 @@ const ObjectFactory = (() => {
     group.add(text);
     layer.add(group);
 
-    // 그리드 스냅
+    // 드래그 중 10cm 스냅
+    group.on('dragmove', () => {
+      group.position({
+        x: CanvasEditor.snapToGrid(group.x()),
+        y: CanvasEditor.snapToGrid(group.y()),
+      });
+    });
     group.on('dragend', () => {
-      const gs = CanvasEditor.getGridSize();
-      const snappedX = CanvasEditor.snapToGrid(group.x());
-      const snappedY = CanvasEditor.snapToGrid(group.y());
-      group.position({ x: snappedX, y: snappedY });
-      App.updateObject(obj.id, { x: snappedX, y: snappedY });
+      App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
-      layer.batchDraw();
     });
 
     // 클릭으로 선택
@@ -103,11 +111,6 @@ const ObjectFactory = (() => {
         transformer.nodes([]);
         layer.batchDraw();
         History.push();
-        return;
-      }
-      if (tool === 'flow' && obj.type === 'station') {
-        // 동선 연결은 stations.js에서 처리
-        App.emit('station-clicked', obj.id);
         return;
       }
       App.selectObject(obj.id);
@@ -125,6 +128,78 @@ const ObjectFactory = (() => {
       rect.height(newH);
       text.width(newW);
       text.height(newH);
+      App.updateObject(obj.id, {
+        x: group.x(), y: group.y(),
+        width: newW, height: newH,
+        rotation: group.rotation(),
+      });
+      History.push();
+      layer.batchDraw();
+    });
+
+    return group;
+  }
+
+  function createWallNode(obj, layer) {
+    const group = new Konva.Group({
+      id: obj.id,
+      x: obj.x,
+      y: obj.y,
+      rotation: obj.rotation || 0,
+      draggable: true,
+    });
+
+    // 벽 = 격자 위 굵은 검정선
+    const w = obj.width || 200;
+    const h = obj.height || 0;
+    const isHorizontal = w >= h;
+
+    const line = new Konva.Line({
+      points: isHorizontal ? [0, 0, w, 0] : [0, 0, 0, h],
+      stroke: '#222222',
+      strokeWidth: 3,
+      lineCap: 'square',
+      hitStrokeWidth: 12,
+    });
+
+    group.add(line);
+    layer.add(group);
+
+    group.on('dragmove', () => {
+      group.position({
+        x: CanvasEditor.snapToGrid(group.x()),
+        y: CanvasEditor.snapToGrid(group.y()),
+      });
+    });
+    group.on('dragend', () => {
+      App.updateObject(obj.id, { x: group.x(), y: group.y() });
+      History.push();
+    });
+
+    group.on('click tap', (e) => {
+      e.cancelBubble = true;
+      const tool = App.getState().activeTool;
+      if (tool === 'delete') {
+        App.removeObject(obj.id);
+        group.destroy();
+        transformer.nodes([]);
+        layer.batchDraw();
+        History.push();
+        return;
+      }
+      App.selectObject(obj.id);
+    });
+
+    group.on('transformend', () => {
+      const scaleX = group.scaleX();
+      const scaleY = group.scaleY();
+      const pts = line.points();
+      const newPts = pts.map((v, i) => v * (i % 2 === 0 ? scaleX : scaleY));
+      group.scaleX(1);
+      group.scaleY(1);
+      line.points(newPts);
+      const newW = Math.abs(newPts[2] - newPts[0]) || 0;
+      const newH = Math.abs(newPts[3] - newPts[1]) || 0;
       App.updateObject(obj.id, {
         x: group.x(), y: group.y(),
         width: newW, height: newH,
@@ -190,13 +265,16 @@ const ObjectFactory = (() => {
     group.add(timeText);
     layer.add(group);
 
+    // 드래그 중 10cm 스냅
+    group.on('dragmove', () => {
+      group.position({
+        x: CanvasEditor.snapToGrid(group.x()),
+        y: CanvasEditor.snapToGrid(group.y()),
+      });
+    });
     group.on('dragend', () => {
-      const snappedX = CanvasEditor.snapToGrid(group.x());
-      const snappedY = CanvasEditor.snapToGrid(group.y());
-      group.position({ x: snappedX, y: snappedY });
-      App.updateObject(obj.id, { x: snappedX, y: snappedY });
+      App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
-      layer.batchDraw();
     });
 
     group.on('click tap', (e) => {
@@ -208,10 +286,6 @@ const ObjectFactory = (() => {
         transformer.nodes([]);
         layer.batchDraw();
         History.push();
-        return;
-      }
-      if (tool === 'flow') {
-        App.emit('station-clicked', obj.id);
         return;
       }
       App.selectObject(obj.id);
@@ -276,6 +350,44 @@ const ObjectFactory = (() => {
     if (!node) return;
     node.position({ x: obj.x, y: obj.y });
     node.rotation(obj.rotation || 0);
+
+    if (obj.type === 'wall') {
+      const line = node.findOne('Line');
+      if (line) {
+        const w = obj.width || 0;
+        const h = obj.height || 0;
+        const isH = w >= h;
+        line.points(isH ? [0, 0, w, 0] : [0, 0, 0, h]);
+      }
+    } else if (obj.type === 'station') {
+      const circle = node.findOne('Circle');
+      if (circle) {
+        const r = Math.min(obj.width || 80, obj.height || 80) / 2;
+        circle.radius(r);
+        circle.x(r);
+        circle.y(r);
+      }
+      const texts = node.find('Text');
+      if (texts[0]) { texts[0].width(obj.width || 80); texts[0].y((obj.height || 80) / 2 - 8); }
+      if (texts[1]) { texts[1].width(obj.width || 80); texts[1].y((obj.height || 80) / 2 + 6); }
+    } else {
+      const rect = node.findOne('Rect');
+      if (rect) {
+        rect.width(obj.width);
+        rect.height(obj.height);
+      }
+      const text = node.findOne('Text');
+      if (text) {
+        text.width(obj.width);
+        text.height(obj.height);
+        if (obj.label !== undefined) text.text(obj.label);
+      }
+    }
+
+    // transformer 갱신
+    if (transformer.nodes().length > 0 && transformer.nodes()[0] === node) {
+      transformer.forceUpdate();
+    }
     CanvasEditor.getObjectLayer().batchDraw();
   }
 

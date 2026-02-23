@@ -1,5 +1,6 @@
 /**
  * App — 전역 상태관리 (EventEmitter 패턴)
+ * 공정(tasks) = 순서대로 정의된 태스크 목록, 각 태스크는 캔버스 장비에 연결
  */
 const App = (() => {
   const listeners = {};
@@ -7,14 +8,13 @@ const App = (() => {
     activeTool: 'select',
     selectedObjectId: null,
     layout: {
-      objects: [],
-      flowPaths: [],
-      canvasWidth: 2000,
-      canvasHeight: 1500,
+      objects: [],       // 캔버스 장비들
+      tasks: [],         // 공정 목록 [{id, name, objectId, duration}]
+      canvasWidth: 500,
+      canvasHeight: 500,
       pixelsPerMeter: 50,
     },
     metrics: null,
-    flowConnectFrom: null, // 동선 연결 시작 스테이션
   };
 
   function on(event, fn) {
@@ -56,12 +56,13 @@ const App = (() => {
     const idx = state.layout.objects.findIndex(o => o.id === id);
     if (idx === -1) return;
     const obj = state.layout.objects.splice(idx, 1)[0];
-    // 관련 동선 경로도 제거
-    state.layout.flowPaths = state.layout.flowPaths.filter(
-      fp => fp.fromStationId !== id && fp.toStationId !== id
-    );
+    // 관련 태스크의 objectId 해제
+    state.layout.tasks.forEach(t => {
+      if (t.objectId === id) t.objectId = null;
+    });
     emit('object-removed', obj);
     emit('layout-changed', state.layout);
+    emit('tasks-changed', state.layout.tasks);
   }
 
   function selectObject(id) {
@@ -69,22 +70,40 @@ const App = (() => {
     emit('selection-changed', id);
   }
 
-  function addFlowPath(fp) {
-    state.layout.flowPaths.push(fp);
-    emit('flow-added', fp);
+  // ── 공정(태스크) 관리 ──
+  function addTask(task) {
+    state.layout.tasks.push(task);
+    emit('tasks-changed', state.layout.tasks);
     emit('layout-changed', state.layout);
   }
 
-  function removeFlowPath(id) {
-    state.layout.flowPaths = state.layout.flowPaths.filter(fp => fp.id !== id);
-    emit('flow-removed', id);
+  function updateTask(id, props) {
+    const t = state.layout.tasks.find(t => t.id === id);
+    if (!t) return;
+    Object.assign(t, props);
+    emit('tasks-changed', state.layout.tasks);
+    emit('layout-changed', state.layout);
+  }
+
+  function removeTask(id) {
+    state.layout.tasks = state.layout.tasks.filter(t => t.id !== id);
+    emit('tasks-changed', state.layout.tasks);
+    emit('layout-changed', state.layout);
+  }
+
+  function reorderTasks(tasks) {
+    state.layout.tasks = tasks;
+    emit('tasks-changed', state.layout.tasks);
     emit('layout-changed', state.layout);
   }
 
   function setLayout(layout) {
+    // 이전 데이터 호환: flowPaths/tasks 없으면 빈 배열
+    if (!layout.tasks) layout.tasks = [];
     state.layout = layout;
     emit('layout-loaded', layout);
     emit('layout-changed', layout);
+    emit('tasks-changed', layout.tasks);
   }
 
   function setMetrics(metrics) {
@@ -102,17 +121,15 @@ const App = (() => {
     Tools.init();
     History.init();
     Serializer.init();
-    Stations.init();
-    FlowPathManager.init();
-    MetricsPanel.init();
+    TaskFlow.init();
     Toolbar.init();
     Sidebar.init();
     ModalManager.init();
 
-    // 자동 저장된 레이아웃 복원
     Serializer.autoLoad();
   }
 
   return { on, off, emit, getState, setTool, addObject, updateObject, removeObject,
-           selectObject, addFlowPath, removeFlowPath, setLayout, setMetrics, genId, init };
+           selectObject, addTask, updateTask, removeTask, reorderTasks,
+           setLayout, setMetrics, genId, init };
 })();
