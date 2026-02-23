@@ -1,3 +1,7 @@
 name = "ssabbamat-infra"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "public"
+
+[[kv_namespaces]]
+binding = "LAYOUTS_KV"
+id = "11ce94815e4740dc8b3a79cba16f8691"

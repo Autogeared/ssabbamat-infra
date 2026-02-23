@@ -149,15 +149,15 @@ const ObjectFactory = (() => {
       draggable: true,
     });
 
-    // 벽 = 격자 위 굵은 검정선
-    const w = obj.width || 200;
-    const h = obj.height || 0;
+    // 벽 = 격자 위 검정 실선
+    const w = (obj.width != null) ? obj.width : 200;
+    const h = (obj.height != null) ? obj.height : 0;
     const isHorizontal = w >= h;
 
     const line = new Konva.Line({
       points: isHorizontal ? [0, 0, w, 0] : [0, 0, 0, h],
       stroke: '#222222',
-      strokeWidth: 3,
+      strokeWidth: 1,
       lineCap: 'square',
       hitStrokeWidth: 12,
     });

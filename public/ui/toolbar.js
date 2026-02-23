@@ -21,13 +21,9 @@ const Toolbar = (() => {
     document.getElementById('btn-undo').addEventListener('click', () => History.undo());
     document.getElementById('btn-redo').addEventListener('click', () => History.redo());
 
-    // 저장
+    // 저장 — 로컬/클라우드 선택
     document.getElementById('btn-save').addEventListener('click', () => {
-      const name = prompt('저장 이름을 입력하세요:', '내 매장 도면');
-      if (name) {
-        Serializer.save(name);
-        alert('저장되었습니다.');
-      }
+      ModalManager.showSave();
     });
 
     // 불러오기

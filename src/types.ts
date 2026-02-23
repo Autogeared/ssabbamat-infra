@@ -107,7 +107,21 @@ export interface FlowAnalyzeResponse {
   metrics: FlowMetrics;
 }
 
+// ── KV 저장 엔트리 ──
+export interface KVLayoutEntry {
+  id: string;
+  name: string;
+  layout: Layout;
+  savedAt: string;
+}
+
+export interface KVLayoutMeta {
+  name: string;
+  savedAt: string;
+}
+
 // ── Cloudflare Workers 환경 ──
 export interface Env {
   ANTHROPIC_API_KEY: string;
+  LAYOUTS_KV: KVNamespace;
 }

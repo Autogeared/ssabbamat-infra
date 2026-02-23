@@ -21,6 +21,8 @@ const ModalManager = (() => {
 
     setupUploadModal();
     setupInsightsModal();
+    setupSaveModal();
+    setupLoadTabs();
   }
 
   // ── 업로드 모달 ──
@@ -194,10 +196,131 @@ const ModalManager = (() => {
     }
   }
 
+  // ── 저장 모달 ──
+  function showSave() {
+    const modal = document.getElementById('modal-save');
+    modal.style.display = 'flex';
+    document.getElementById('save-name-input').value = '';
+    document.getElementById('save-status').style.display = 'none';
+    document.getElementById('save-name-input').focus();
+  }
+
+  function setupSaveModal() {
+    document.getElementById('btn-save-local').addEventListener('click', () => {
+      const name = document.getElementById('save-name-input').value.trim();
+      if (!name) { alert('저장 이름을 입력하세요.'); return; }
+      Serializer.save(name);
+      const status = document.getElementById('save-status');
+      status.textContent = '로컬에 저장되었습니다.';
+      status.style.display = '';
+      status.style.color = 'var(--success, #10B981)';
+      setTimeout(() => { document.getElementById('modal-save').style.display = 'none'; }, 800);
+    });
+
+    document.getElementById('btn-save-cloud').addEventListener('click', async () => {
+      const name = document.getElementById('save-name-input').value.trim();
+      if (!name) { alert('저장 이름을 입력하세요.'); return; }
+      const btn = document.getElementById('btn-save-cloud');
+      const status = document.getElementById('save-status');
+      btn.disabled = true;
+      btn.textContent = '저장 중...';
+      status.style.display = 'none';
+      try {
+        await Serializer.saveToCloud(name);
+        status.textContent = '클라우드에 저장되었습니다.';
+        status.style.color = 'var(--success, #10B981)';
+        status.style.display = '';
+        setTimeout(() => { document.getElementById('modal-save').style.display = 'none'; }, 800);
+      } catch (err) {
+        status.textContent = '오류: ' + err.message;
+        status.style.color = 'var(--danger, #EF4444)';
+        status.style.display = '';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '클라우드 저장';
+      }
+    });
+  }
+
+  // ── 불러오기 탭 전환 ──
+  function setupLoadTabs() {
+    const tabLocal = document.getElementById('load-tab-local');
+    const tabCloud = document.getElementById('load-tab-cloud');
+    const panelLocal = document.getElementById('load-local-panel');
+    const panelCloud = document.getElementById('load-cloud-panel');
+
+    tabLocal.addEventListener('click', () => {
+      tabLocal.classList.add('active');
+      tabCloud.classList.remove('active');
+      panelLocal.style.display = '';
+      panelCloud.style.display = 'none';
+    });
+
+    tabCloud.addEventListener('click', () => {
+      tabCloud.classList.add('active');
+      tabLocal.classList.remove('active');
+      panelLocal.style.display = 'none';
+      panelCloud.style.display = '';
+      refreshCloudList();
+    });
+  }
+
+  async function refreshCloudList() {
+    const list = document.getElementById('cloud-list');
+    const loading = document.getElementById('cloud-list-loading');
+    list.innerHTML = '';
+    loading.style.display = '';
+
+    try {
+      const layouts = await Serializer.listCloud();
+      loading.style.display = 'none';
+
+      if (!layouts || layouts.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">클라우드에 저장된 도면이 없습니다.</p>';
+        return;
+      }
+
+      list.innerHTML = layouts.map(item => {
+        const d = item.savedAt ? new Date(item.savedAt).toLocaleString('ko-KR') : '';
+        return `<div class="saved-item" data-cloud-id="${item.id}">
+          <div><div class="name">${item.name}</div><div class="date">${d}</div></div>
+          <button class="btn-del" data-cloud-del="${item.id}">&times;</button>
+        </div>`;
+      }).join('');
+
+      list.querySelectorAll('.saved-item').forEach(item => {
+        item.addEventListener('click', async (e) => {
+          if (e.target.classList.contains('btn-del')) {
+            if (!confirm('클라우드에서 삭제하시겠습니까?')) return;
+            try {
+              await Serializer.deleteFromCloud(e.target.dataset.cloudDel);
+              refreshCloudList();
+            } catch (err) { alert('삭제 실패: ' + err.message); }
+            return;
+          }
+          try {
+            await Serializer.loadFromCloud(item.dataset.cloudId);
+            document.getElementById('modal-load').style.display = 'none';
+          } catch (err) { alert('불러오기 실패: ' + err.message); }
+        });
+      });
+    } catch (err) {
+      loading.style.display = 'none';
+      list.innerHTML = `<p style="color:var(--danger, #EF4444);font-size:13px;">오류: ${err.message}</p>`;
+    }
+  }
+
   // ── 불러오기 모달 ──
   function showLoad() {
     const modal = document.getElementById('modal-load');
     modal.style.display = 'flex';
+
+    // 로컬 탭 기본 선택
+    document.getElementById('load-tab-local').classList.add('active');
+    document.getElementById('load-tab-cloud').classList.remove('active');
+    document.getElementById('load-local-panel').style.display = '';
+    document.getElementById('load-cloud-panel').style.display = 'none';
+
     refreshSavedList();
 
     document.getElementById('import-input').addEventListener('change', (e) => {
@@ -256,5 +379,5 @@ const ModalManager = (() => {
       .replace(/$/, '</p>');
   }
 
-  return { init, showUpload, showInsights, showLoad };
+  return { init, showUpload, showInsights, showLoad, showSave };
 })();

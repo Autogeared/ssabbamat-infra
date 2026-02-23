@@ -229,6 +229,30 @@
     </div>
   </div>
 
+  <!-- ── 모달: 저장 ── -->
+  <div class="modal-overlay" id="modal-save" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>도면 저장</h2>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:12px;">
+          <label style="display:block;margin-bottom:4px;font-size:13px;">저장 이름</label>
+          <input type="text" id="save-name-input" placeholder="내 매장 도면" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="action-btn" id="btn-save-local" style="flex:1;">로컬 저장</button>
+          <button class="action-btn primary" id="btn-save-cloud" style="flex:1;">클라우드 저장</button>
+        </div>
+        <p id="save-status" style="margin-top:8px;font-size:12px;color:var(--text-muted);display:none;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" data-close>닫기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── 모달: 불러오기 ── -->
   <div class="modal-overlay" id="modal-load" style="display:none;">
     <div class="modal">
@@ -237,10 +261,20 @@
         <button class="modal-close" data-close>&times;</button>
       </div>
       <div class="modal-body">
-        <div id="saved-list"></div>
-        <div class="separator" style="margin:12px 0;"></div>
-        <p>또는 JSON 파일 가져오기:</p>
-        <input type="file" id="import-input" accept=".json">
+        <div class="load-tabs" style="display:flex;gap:4px;margin-bottom:12px;">
+          <button class="action-btn active" id="load-tab-local">로컬</button>
+          <button class="action-btn" id="load-tab-cloud">클라우드</button>
+        </div>
+        <div id="load-local-panel">
+          <div id="saved-list"></div>
+          <div class="separator" style="margin:12px 0;"></div>
+          <p>또는 JSON 파일 가져오기:</p>
+          <input type="file" id="import-input" accept=".json">
+        </div>
+        <div id="load-cloud-panel" style="display:none;">
+          <div id="cloud-list-loading" style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">불러오는 중...</div>
+          <div id="cloud-list"></div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="action-btn" data-close>닫기</button>

@@ -94,6 +94,53 @@ const Serializer = (() => {
     });
   }
 
+  // ── 클라우드 저장/불러오기 ──
+
+  async function saveToCloud(name) {
+    const layout = App.getState().layout;
+    const res = await fetch('/api/layouts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, layout }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || '클라우드 저장 실패');
+    }
+    return await res.json();
+  }
+
+  async function listCloud() {
+    const res = await fetch('/api/layouts');
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || '클라우드 목록 조회 실패');
+    }
+    const data = await res.json();
+    return data.layouts;
+  }
+
+  async function loadFromCloud(id) {
+    const res = await fetch(`/api/layouts/${id}`);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || '클라우드 불러오기 실패');
+    }
+    const data = await res.json();
+    App.setLayout(data.layout);
+    History.clear();
+    return data;
+  }
+
+  async function deleteFromCloud(id) {
+    const res = await fetch(`/api/layouts/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || '클라우드 삭제 실패');
+    }
+    return true;
+  }
+
   function debounce(fn, delay) {
     let timer;
     return (...args) => {
@@ -102,5 +149,8 @@ const Serializer = (() => {
     };
   }
 
-  return { init, autoSave, autoLoad, save, load, remove, getAll, exportJSON, importJSON };
+  return {
+    init, autoSave, autoLoad, save, load, remove, getAll, exportJSON, importJSON,
+    saveToCloud, listCloud, loadFromCloud, deleteFromCloud,
+  };
 })();

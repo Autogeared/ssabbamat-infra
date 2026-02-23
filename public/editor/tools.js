@@ -5,10 +5,13 @@ const Tools = (() => {
   let wallStartPos = null;
   let wallPreview = null;
   let clipboard = null; // 복사된 객체
+  let selRect = null;   // 드래그 선택 사각형
+  let selStartPos = null;
 
   function init() {
     App.on('tool-changed', onToolChanged);
     setupWallDrawing();
+    setupMarqueeSelect();
     setupCanvasClick();
     setupDrop();
     setupKeyboard();
@@ -23,8 +26,14 @@ const Tools = (() => {
       wallPreview.destroy();
       wallPreview = null;
       wallStartPos = null;
-      CanvasEditor.getUILayer().batchDraw();
     }
+    // 드래그 선택 정리
+    if (selRect) {
+      selRect.destroy();
+      selRect = null;
+      selStartPos = null;
+    }
+    CanvasEditor.getUILayer().batchDraw();
 
     // 커서 변경
     switch (tool) {
@@ -58,7 +67,7 @@ const Tools = (() => {
       wallPreview = new Konva.Line({
         points: [wallStartPos.x, wallStartPos.y, wallStartPos.x, wallStartPos.y],
         stroke: '#222222',
-        strokeWidth: 3,
+        strokeWidth: 1,
         opacity: 0.5,
         lineCap: 'square',
       });
@@ -124,6 +133,94 @@ const Tools = (() => {
       ObjectFactory.createNode(obj);
       History.push();
       wallStartPos = null;
+    });
+  }
+
+  function setupMarqueeSelect() {
+    const stage = CanvasEditor.getStage();
+
+    stage.on('mousedown touchstart', (e) => {
+      if (App.getState().activeTool !== 'select') return;
+      if (e.target !== stage) return;
+
+      const pos = CanvasEditor.getCanvasPointer();
+      if (!pos) return;
+
+      selStartPos = { x: pos.x, y: pos.y };
+      selRect = new Konva.Rect({
+        x: pos.x,
+        y: pos.y,
+        width: 0,
+        height: 0,
+        stroke: '#D97756',
+        strokeWidth: 1,
+        dash: [4, 4],
+        fill: 'rgba(217, 119, 86, 0.1)',
+      });
+      CanvasEditor.getUILayer().add(selRect);
+    });
+
+    stage.on('mousemove touchmove', () => {
+      if (!selRect || !selStartPos) return;
+      if (App.getState().activeTool !== 'select') return;
+
+      const pos = CanvasEditor.getCanvasPointer();
+      if (!pos) return;
+
+      const x = Math.min(selStartPos.x, pos.x);
+      const y = Math.min(selStartPos.y, pos.y);
+      const w = Math.abs(pos.x - selStartPos.x);
+      const h = Math.abs(pos.y - selStartPos.y);
+
+      selRect.setAttrs({ x, y, width: w, height: h });
+      CanvasEditor.getUILayer().batchDraw();
+    });
+
+    stage.on('mouseup touchend', () => {
+      if (!selRect || !selStartPos) return;
+      if (App.getState().activeTool !== 'select') return;
+
+      const rx = selRect.x();
+      const ry = selRect.y();
+      const rw = selRect.width();
+      const rh = selRect.height();
+
+      selRect.destroy();
+      selRect = null;
+      selStartPos = null;
+      CanvasEditor.getUILayer().batchDraw();
+
+      // 너무 작으면 무시 (클릭으로 간주)
+      if (rw < 5 && rh < 5) return;
+
+      // 선택 영역과 겹치는 모든 객체 찾기 (벽 등 얇은 객체는 패딩 추가)
+      const objectLayer = CanvasEditor.getObjectLayer();
+      const PAD = 6;
+      const matched = [];
+      objectLayer.children.forEach(node => {
+        if (node.getClassName() === 'Transformer') return;
+        const box = node.getClientRect({ relativeTo: objectLayer });
+        const bx = box.x - PAD;
+        const by = box.y - PAD;
+        const bw = box.width + PAD * 2;
+        const bh = box.height + PAD * 2;
+        if (bx + bw > rx && bx < rx + rw &&
+            by + bh > ry && by < ry + rh) {
+          matched.push(node);
+        }
+      });
+
+      if (matched.length > 0) {
+        // 첫 번째 객체를 App 선택 상태로
+        App.selectObject(matched[0].id());
+        // Transformer에 모든 매칭 노드 설정
+        const tf = objectLayer.findOne('Transformer');
+        if (tf) {
+          tf.nodes(matched);
+          tf.moveToTop();
+          objectLayer.batchDraw();
+        }
+      }
     });
   }
 
