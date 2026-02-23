@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>싸빠맛 매장 도면 에디터</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+</head>
+<body>
+  <!-- ── 상단 툴바 ── -->
+  <header id="toolbar">
+    <div class="toolbar-left">
+      <h1 class="logo">싸빠맛 도면</h1>
+      <div class="tool-group">
+        <button class="tool-btn active" data-tool="select" title="선택/이동 (V)">
+          <span>↖</span> 선택
+        </button>
+        <button class="tool-btn" data-tool="wall" title="벽 그리기 (W)">
+          <span>▬</span> 벽
+        </button>
+        <button class="tool-btn" data-tool="place" title="장비 배치 (P)">
+          <span>▣</span> 배치
+        </button>
+        <button class="tool-btn" data-tool="station" title="공정 스테이션 (S)">
+          <span>◉</span> 스테이션
+        </button>
+        <button class="tool-btn" data-tool="flow" title="동선 연결 (F)">
+          <span>→</span> 동선
+        </button>
+        <button class="tool-btn" data-tool="delete" title="삭제 (D)">
+          <span>✕</span> 삭제
+        </button>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <button class="action-btn" id="btn-undo" title="실행취소 (Ctrl+Z)">↩ 실행취소</button>
+      <button class="action-btn" id="btn-redo" title="다시실행 (Ctrl+Y)">↪ 다시실행</button>
+      <div class="separator"></div>
+      <button class="action-btn" id="btn-upload">📷 도면 업로드</button>
+      <button class="action-btn primary" id="btn-ai-analyze">🤖 AI 분석</button>
+      <div class="separator"></div>
+      <button class="action-btn" id="btn-save">💾 저장</button>
+      <button class="action-btn" id="btn-load">📂 불러오기</button>
+      <button class="action-btn" id="btn-export">📤 내보내기</button>
+    </div>
+  </header>
+
+  <!-- ── 메인 콘텐츠 ── -->
+  <main id="workspace">
+    <!-- 캔버스 영역 -->
+    <div id="canvas-container">
+      <div id="konva-container"></div>
+      <div id="zoom-info">100%</div>
+    </div>
+
+    <!-- 우측 사이드바 -->
+    <aside id="sidebar">
+      <!-- 탭 전환 -->
+      <div class="sidebar-tabs">
+        <button class="tab-btn active" data-tab="palette">팔레트</button>
+        <button class="tab-btn" data-tab="properties">속성</button>
+        <button class="tab-btn" data-tab="metrics">메트릭</button>
+      </div>
+
+      <!-- 팔레트 탭 -->
+      <div class="tab-content active" id="tab-palette">
+        <h3>장비</h3>
+        <div class="palette-grid">
+          <div class="palette-item" data-type="counter" draggable="true">
+            <div class="palette-icon" style="background:#8B5CF6;">▭</div>
+            <span>카운터</span>
+          </div>
+          <div class="palette-item" data-type="gas-range" draggable="true">
+            <div class="palette-icon" style="background:#EF4444;">🔥</div>
+            <span>가스레인지</span>
+          </div>
+          <div class="palette-item" data-type="sink" draggable="true">
+            <div class="palette-icon" style="background:#3B82F6;">💧</div>
+            <span>싱크대</span>
+          </div>
+          <div class="palette-item" data-type="prep-table" draggable="true">
+            <div class="palette-icon" style="background:#F59E0B;">▤</div>
+            <span>조리대</span>
+          </div>
+          <div class="palette-item" data-type="fridge" draggable="true">
+            <div class="palette-icon" style="background:#06B6D4;">❄</div>
+            <span>냉장고</span>
+          </div>
+          <div class="palette-item" data-type="storage" draggable="true">
+            <div class="palette-icon" style="background:#6B7280;">📦</div>
+            <span>보관함</span>
+          </div>
+          <div class="palette-item" data-type="door" draggable="true">
+            <div class="palette-icon" style="background:#10B981;">🚪</div>
+            <span>문</span>
+          </div>
+          <div class="palette-item" data-type="window" draggable="true">
+            <div class="palette-icon" style="background:#93C5FD;">☐</div>
+            <span>창문</span>
+          </div>
+        </div>
+
+        <h3>공정 스테이션</h3>
+        <div class="palette-grid">
+          <div class="palette-item" data-type="station" data-role="order-receive" draggable="true">
+            <div class="palette-icon" style="background:#3B82F6;">①</div>
+            <span>주문접수</span>
+          </div>
+          <div class="palette-item" data-type="station" data-role="prep" draggable="true">
+            <div class="palette-icon" style="background:#8B5CF6;">②</div>
+            <span>준비</span>
+          </div>
+          <div class="palette-item" data-type="station" data-role="cook" draggable="true">
+            <div class="palette-icon" style="background:#EF4444;">③</div>
+            <span>조리</span>
+          </div>
+          <div class="palette-item" data-type="station" data-role="plate" draggable="true">
+            <div class="palette-icon" style="background:#F59E0B;">④</div>
+            <span>플레이팅</span>
+          </div>
+          <div class="palette-item" data-type="station" data-role="pack" draggable="true">
+            <div class="palette-icon" style="background:#10B981;">⑤</div>
+            <span>포장</span>
+          </div>
+          <div class="palette-item" data-type="station" data-role="pickup" draggable="true">
+            <div class="palette-icon" style="background:#06B6D4;">⑥</div>
+            <span>픽업</span>
+          </div>
+          <div class="palette-item" data-type="station" data-role="delivery-out" draggable="true">
+            <div class="palette-icon" style="background:#6366F1;">⑦</div>
+            <span>배달출고</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 속성 탭 -->
+      <div class="tab-content" id="tab-properties">
+        <div id="no-selection">
+          <p>객체를 선택하면 속성을 편집할 수 있습니다.</p>
+        </div>
+        <div id="selection-props" style="display:none;">
+          <div class="prop-group">
+            <label>유형</label>
+            <span id="prop-type"></span>
+          </div>
+          <div class="prop-group">
+            <label>라벨</label>
+            <input type="text" id="prop-label" placeholder="라벨 입력">
+          </div>
+          <div class="prop-group">
+            <label>X (px)</label>
+            <input type="number" id="prop-x">
+          </div>
+          <div class="prop-group">
+            <label>Y (px)</label>
+            <input type="number" id="prop-y">
+          </div>
+          <div class="prop-group">
+            <label>너비</label>
+            <input type="number" id="prop-width">
+          </div>
+          <div class="prop-group">
+            <label>높이</label>
+            <input type="number" id="prop-height">
+          </div>
+          <div class="prop-group">
+            <label>회전 (°)</label>
+            <input type="number" id="prop-rotation" min="0" max="360">
+          </div>
+          <div class="prop-group station-only" style="display:none;">
+            <label>처리시간 (초)</label>
+            <input type="number" id="prop-processing-time" min="0">
+          </div>
+          <button class="action-btn danger" id="btn-delete-selected">선택 객체 삭제</button>
+        </div>
+      </div>
+
+      <!-- 메트릭 탭 -->
+      <div class="tab-content" id="tab-metrics">
+        <div id="metrics-panel">
+          <div class="metric-card">
+            <span class="metric-label">총 이동거리</span>
+            <span class="metric-value" id="metric-distance">-</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">보행시간</span>
+            <span class="metric-value" id="metric-walk-time">-</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">사이클시간</span>
+            <span class="metric-value" id="metric-cycle-time">-</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">복잡도</span>
+            <span class="metric-value" id="metric-complexity">-</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">방향전환</span>
+            <span class="metric-value" id="metric-direction">-</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">교차</span>
+            <span class="metric-value" id="metric-crossings">-</span>
+          </div>
+          <div class="metric-card full-width">
+            <span class="metric-label">병목</span>
+            <span class="metric-value" id="metric-bottleneck">-</span>
+          </div>
+          <h4>구간별</h4>
+          <div id="metric-segments"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ── 모달: 이미지 업로드 ── -->
+  <div class="modal-overlay" id="modal-upload" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>도면 이미지 업로드</h2>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="upload-dropzone">
+          <p>이미지를 드래그하거나 클릭하여 업로드</p>
+          <p class="hint">위에서 본 도면 사진 (JPG, PNG)</p>
+          <input type="file" id="upload-input" accept="image/*" style="display:none;">
+        </div>
+        <div id="upload-preview" style="display:none;">
+          <img id="preview-img" alt="미리보기">
+          <p id="upload-info"></p>
+        </div>
+        <div id="upload-progress" style="display:none;">
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+          <p id="upload-status">AI가 도면을 분석 중입니다...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" data-close>취소</button>
+        <button class="action-btn primary" id="btn-recognize" disabled>AI 인식 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 모달: AI 인사이트 ── -->
+  <div class="modal-overlay" id="modal-insights" style="display:none;">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2>AI 동선 분석 인사이트</h2>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="insights-loading" style="display:none;">
+          <div class="spinner"></div>
+          <p>AI가 레이아웃을 분석 중입니다...</p>
+        </div>
+        <div id="insights-content" class="markdown-body"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" data-close>닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 모달: 불러오기 ── -->
+  <div class="modal-overlay" id="modal-load" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>도면 불러오기</h2>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="saved-list"></div>
+        <div class="separator" style="margin:12px 0;"></div>
+        <p>또는 JSON 파일 가져오기:</p>
+        <input type="file" id="import-input" accept=".json">
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" data-close>닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS 모듈 -->
+  <script src="/app.js"></script>
+  <script src="/editor/canvas.js"></script>
+  <script src="/editor/objects.js"></script>
+  <script src="/editor/tools.js"></script>
+  <script src="/editor/history.js"></script>
+  <script src="/editor/serializer.js"></script>
+  <script src="/workflow/stations.js"></script>
+  <script src="/workflow/flow-path.js"></script>
+  <script src="/workflow/metrics.js"></script>
+  <script src="/ui/toolbar.js"></script>
+  <script src="/ui/sidebar.js"></script>
+  <script src="/ui/modal.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      App.init();
+    });
+  </script>
+</body>
+</html>

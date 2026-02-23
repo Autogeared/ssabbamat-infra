@@ -1,0 +1,19 @@
+{
+  "name": "ssabbamat-infra",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public --compatibility-date 2024-01-01",
+    "deploy": "wrangler pages deploy public",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.4.0",
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "wrangler": "^3.60.0",
+    "@cloudflare/workers-types": "^4.20240620.0"
+  }
+}

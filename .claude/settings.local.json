@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /c/Users/dennn/Desktop/ATGRD_WS/ssabbamat-infra && npm install 2>&1)",
+      "Bash(cd /c/Users/dennn/Desktop/ATGRD_WS/ssabbamat-infra && npx tsc --noEmit 2>&1)",
+      "Bash(true:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}
