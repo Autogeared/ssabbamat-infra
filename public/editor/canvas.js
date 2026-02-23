@@ -1,12 +1,17 @@
 /**
  * CanvasEditor — Konva Stage, 레이어, 그리드, 줌/팬
+ * 그리드: 10cm 단위 (5px), 1m 단위 굵은선 + 숫자 표기
  */
 const CanvasEditor = (() => {
   let stage, gridLayer, objectLayer, flowLayer, uiLayer;
   let scale = 1;
   const MIN_SCALE = 0.1;
   const MAX_SCALE = 5;
-  const GRID_SIZE = 25; // px
+
+  const PPM = 50;            // 50px = 1m
+  const CELL = PPM / 10;     // 5px = 10cm (스냅 단위)
+  const MAJOR = PPM;          // 50px = 1m (굵은선 + 숫자)
+  const HALF = PPM / 2;       // 25px = 50cm (중간선)
 
   function init() {
     const container = document.getElementById('konva-container');
@@ -54,23 +59,81 @@ const CanvasEditor = (() => {
       fill: '#1a1d27',
     }));
 
-    // 그리드 선
-    for (let x = 0; x <= w; x += GRID_SIZE) {
-      const isMajor = x % (GRID_SIZE * 4) === 0;
+    // ── 세로선 ──
+    for (let x = 0; x <= w; x += CELL) {
+      const isMajor = x % MAJOR === 0;
+      const isHalf  = x % HALF === 0;
+
+      let stroke, strokeWidth;
+      if (isMajor) {
+        stroke = '#3d4260';
+        strokeWidth = 1.2;
+      } else if (isHalf) {
+        stroke = '#2a2f44';
+        strokeWidth = 0.8;
+      } else {
+        stroke = '#1e2236';
+        strokeWidth = 0.4;
+      }
+
       gridLayer.add(new Konva.Line({
         points: [x, 0, x, h],
-        stroke: isMajor ? '#2e3348' : '#1f2233',
-        strokeWidth: isMajor ? 1 : 0.5,
+        stroke, strokeWidth,
       }));
+
+      // 1m 마다 숫자 (상단)
+      if (isMajor && x > 0) {
+        gridLayer.add(new Konva.Text({
+          x: x + 3,
+          y: 3,
+          text: (x / PPM).toFixed(0) + 'm',
+          fontSize: 10,
+          fill: '#556',
+        }));
+      }
     }
-    for (let y = 0; y <= h; y += GRID_SIZE) {
-      const isMajor = y % (GRID_SIZE * 4) === 0;
+
+    // ── 가로선 ──
+    for (let y = 0; y <= h; y += CELL) {
+      const isMajor = y % MAJOR === 0;
+      const isHalf  = y % HALF === 0;
+
+      let stroke, strokeWidth;
+      if (isMajor) {
+        stroke = '#3d4260';
+        strokeWidth = 1.2;
+      } else if (isHalf) {
+        stroke = '#2a2f44';
+        strokeWidth = 0.8;
+      } else {
+        stroke = '#1e2236';
+        strokeWidth = 0.4;
+      }
+
       gridLayer.add(new Konva.Line({
         points: [0, y, w, y],
-        stroke: isMajor ? '#2e3348' : '#1f2233',
-        strokeWidth: isMajor ? 1 : 0.5,
+        stroke, strokeWidth,
       }));
+
+      // 1m 마다 숫자 (좌측)
+      if (isMajor && y > 0) {
+        gridLayer.add(new Konva.Text({
+          x: 3,
+          y: y + 3,
+          text: (y / PPM).toFixed(0) + 'm',
+          fontSize: 10,
+          fill: '#556',
+        }));
+      }
     }
+
+    // 원점 표시
+    gridLayer.add(new Konva.Text({
+      x: 3, y: 3,
+      text: '0',
+      fontSize: 10,
+      fill: '#556',
+    }));
 
     gridLayer.batchDraw();
   }
@@ -167,8 +230,9 @@ const CanvasEditor = (() => {
     document.getElementById('zoom-info').textContent = Math.round(scale * 100) + '%';
   }
 
+  // 10cm (5px) 단위 스냅
   function snapToGrid(val) {
-    return Math.round(val / GRID_SIZE) * GRID_SIZE;
+    return Math.round(val / CELL) * CELL;
   }
 
   function getStage() { return stage; }
@@ -176,7 +240,7 @@ const CanvasEditor = (() => {
   function getFlowLayer() { return flowLayer; }
   function getUILayer() { return uiLayer; }
   function getScale() { return scale; }
-  function getGridSize() { return GRID_SIZE; }
+  function getGridSize() { return CELL; }
 
   function getCanvasPointer() {
     const pos = stage.getPointerPosition();

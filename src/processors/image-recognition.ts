@@ -31,10 +31,13 @@ export async function recognizeImage(
     }],
   });
 
-  const text = response.content
+  let text = response.content
     .filter(b => b.type === 'text')
     .map(b => (b as { type: 'text'; text: string }).text)
     .join('');
+
+  // 마크다운 코드블록 제거 (```json ... ``` 등)
+  text = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
   const parsed = JSON.parse(text);
 
