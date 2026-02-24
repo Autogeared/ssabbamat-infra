@@ -34,9 +34,10 @@ const TaskFlow = (() => {
       const tx = toObj.x + (toObj.width || 50) / 2;
       const ty = toObj.y + (toObj.height || 50) / 2;
 
-      // 순번 라벨
       const mx = (fx + tx) / 2;
       const my = (fy + ty) / 2;
+      const ppm = App.getState().layout.pixelsPerMeter || 50;
+      const segDist = Math.sqrt((tx - fx) ** 2 + (ty - fy) ** 2) / ppm;
 
       layer.add(new Konva.Arrow({
         points: [fx, fy, tx, ty],
@@ -49,17 +50,24 @@ const TaskFlow = (() => {
         dash: [6, 3],
       }));
 
-      layer.add(new Konva.Tag({
-        x: mx, y: my,
+      // 구간 순번 + 거리 라벨
+      const labelText = (i + 1) + '  ' + segDist.toFixed(1) + 'm';
+      const lbl = new Konva.Label({ x: mx, y: my - 10 });
+      lbl.add(new Konva.Tag({
+        fill: 'rgba(0,0,0,0.6)',
+        cornerRadius: 3,
+        pointerDirection: 'down',
+        pointerWidth: 6,
+        pointerHeight: 4,
       }));
-      layer.add(new Konva.Text({
-        x: mx - 6,
-        y: my - 6,
-        text: String(i + 1),
-        fontSize: 10,
-        fill: '#D97756',
+      lbl.add(new Konva.Text({
+        text: labelText,
+        fontSize: 11,
+        fill: '#fff',
+        padding: 3,
         fontStyle: 'bold',
       }));
+      layer.add(lbl);
     }
 
     layer.batchDraw();
@@ -74,6 +82,7 @@ const TaskFlow = (() => {
 
     if (tasks.length === 0) {
       App.setMetrics(null);
+      updateStatusFlow(null);
       return;
     }
 
@@ -139,7 +148,7 @@ const TaskFlow = (() => {
       }
     }
 
-    App.setMetrics({
+    const metrics = {
       totalDistance: Math.round(totalDistance * 100) / 100,
       totalWalkTime: Math.round(totalWalkTime * 10) / 10,
       totalCycleTime: Math.round(totalCycleTime * 10) / 10,
@@ -150,7 +159,23 @@ const TaskFlow = (() => {
       segments,
       taskCount: tasks.length,
       totalProcessing,
-    });
+    };
+    App.setMetrics(metrics);
+    updateStatusFlow(metrics);
+  }
+
+  function updateStatusFlow(m) {
+    const el = document.getElementById('status-flow');
+    const sep = document.getElementById('status-flow-sep');
+    if (!el || !sep) return;
+    if (!m || m.totalDistance === 0) {
+      el.style.display = 'none';
+      sep.style.display = 'none';
+    } else {
+      el.style.display = '';
+      sep.style.display = '';
+      el.textContent = '동선 ' + m.totalDistance + 'm (' + m.totalWalkTime + '초)';
+    }
   }
 
   function debounce(fn, d) {
