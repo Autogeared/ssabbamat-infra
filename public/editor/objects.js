@@ -93,6 +93,51 @@ const ObjectFactory = (() => {
     }
   }
 
+  // ── Multi-Drag (다중 선택 그룹 드래그) ──
+  let _multiDrag = null; // { leadId, startPositions: Map<node, {x,y}>, leadStart: {x,y} }
+
+  function multiDragStart(group) {
+    const nodes = transformer.nodes();
+    if (nodes.length <= 1 || nodes.indexOf(group) === -1) {
+      _multiDrag = null;
+      return;
+    }
+    _multiDrag = {
+      leadId: group.id(),
+      leadStart: { x: group.x(), y: group.y() },
+      others: [],
+    };
+    nodes.forEach(n => {
+      if (n === group) return;
+      _multiDrag.others.push({
+        node: n,
+        startX: n.x(),
+        startY: n.y(),
+      });
+    });
+  }
+
+  function multiDragMove(group) {
+    if (!_multiDrag || _multiDrag.leadId !== group.id()) return;
+    const dx = group.x() - _multiDrag.leadStart.x;
+    const dy = group.y() - _multiDrag.leadStart.y;
+    _multiDrag.others.forEach(({ node, startX, startY }) => {
+      node.position({
+        x: CanvasEditor.snapToGrid(startX + dx),
+        y: CanvasEditor.snapToGrid(startY + dy),
+      });
+    });
+  }
+
+  function multiDragEnd() {
+    if (!_multiDrag) return;
+    // 나머지 노드들의 App 상태 업데이트
+    _multiDrag.others.forEach(({ node }) => {
+      App.updateObject(node.id(), { x: node.x(), y: node.y() });
+    });
+    _multiDrag = null;
+  }
+
   // ── Smart Guides ──
   const GUIDE_SNAP_THRESHOLD = 5; // px
   let _guideLines = [];
@@ -260,13 +305,17 @@ const ObjectFactory = (() => {
     layer.add(group);
     applyHover(group);
 
-    // 드래그 중 스냅 + 스마트 가이드 + 치수 라벨
-    group.on('dragstart', () => { cacheOtherBoxes(obj.id); });
+    // 드래그 중 스냅 + 스마트 가이드 + 치수 라벨 + 멀티 드래그
+    group.on('dragstart', () => {
+      multiDragStart(group);
+      cacheOtherBoxes(obj.id);
+    });
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      multiDragMove(group);
       showSmartGuides(group);
       showDimLabel(
         `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
@@ -274,6 +323,7 @@ const ObjectFactory = (() => {
       );
     });
     group.on('dragend', () => {
+      multiDragEnd();
       clearGuides();
       CanvasEditor.getUILayer().batchDraw();
       removeDimLabel();
@@ -357,12 +407,16 @@ const ObjectFactory = (() => {
     layer.add(group);
     applyHover(group);
 
-    group.on('dragstart', () => { cacheOtherBoxes(obj.id); });
+    group.on('dragstart', () => {
+      multiDragStart(group);
+      cacheOtherBoxes(obj.id);
+    });
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      multiDragMove(group);
       showSmartGuides(group);
       showDimLabel(
         `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
@@ -370,6 +424,7 @@ const ObjectFactory = (() => {
       );
     });
     group.on('dragend', () => {
+      multiDragEnd();
       clearGuides();
       CanvasEditor.getUILayer().batchDraw();
       removeDimLabel();
@@ -476,13 +531,17 @@ const ObjectFactory = (() => {
     layer.add(group);
     applyHover(group);
 
-    // 드래그 중 스냅 + 스마트 가이드 + 치수 라벨
-    group.on('dragstart', () => { cacheOtherBoxes(obj.id); });
+    // 드래그 중 스냅 + 스마트 가이드 + 치수 라벨 + 멀티 드래그
+    group.on('dragstart', () => {
+      multiDragStart(group);
+      cacheOtherBoxes(obj.id);
+    });
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      multiDragMove(group);
       showSmartGuides(group);
       showDimLabel(
         `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
@@ -490,6 +549,7 @@ const ObjectFactory = (() => {
       );
     });
     group.on('dragend', () => {
+      multiDragEnd();
       clearGuides();
       CanvasEditor.getUILayer().batchDraw();
       removeDimLabel();
