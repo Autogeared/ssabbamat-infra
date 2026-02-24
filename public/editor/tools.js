@@ -61,7 +61,7 @@ const Tools = (() => {
 
     stage.on('mousedown touchstart', (e) => {
       if (App.getState().activeTool !== 'wall') return;
-      if (e.target !== stage) return;
+      e.cancelBubble = true; // 객체 위에서도 벽 그리기 시작
 
       const pos = CanvasEditor.getCanvasPointer();
       if (!pos) return;
@@ -360,13 +360,33 @@ const Tools = (() => {
   }
 
   function deleteSelected() {
+    // 다중 선택 삭제 지원
+    const layer = CanvasEditor.getObjectLayer();
+    const tf = layer.findOne('Transformer');
+    const nodes = tf ? tf.nodes().slice() : [];
+
+    if (nodes.length > 1) {
+      // 다중 삭제
+      nodes.forEach(node => {
+        App.removeObject(node.id());
+        node.destroy();
+      });
+      tf.nodes([]);
+      App.selectObject(null);
+      layer.batchDraw();
+      History.push();
+      showToast(nodes.length + '개 삭제됨');
+      return;
+    }
+
+    // 단일 삭제
     const id = App.getState().selectedObjectId;
     if (!id) return;
     const node = ObjectFactory.findNode(id);
     if (node) node.destroy();
     App.removeObject(id);
     App.selectObject(null);
-    CanvasEditor.getObjectLayer().batchDraw();
+    layer.batchDraw();
     History.push();
   }
 

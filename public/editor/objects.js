@@ -256,6 +256,17 @@ const ObjectFactory = (() => {
 
     App.on('selection-changed', onSelectionChanged);
     App.on('layout-loaded', rebuildAll);
+
+    // 도구 변경 시 드래그 가능 여부 토글 (벽/삭제 도구에서는 드래그 비활성화)
+    App.on('tool-changed', (tool) => {
+      const canDrag = (tool === 'select');
+      const layer = CanvasEditor.getObjectLayer();
+      layer.children.forEach(node => {
+        if (node.getClassName() === 'Transformer') return;
+        if (canDrag && typeof LayerPanel !== 'undefined' && LayerPanel.isLocked(node.id())) return;
+        node.draggable(canDrag);
+      });
+    });
   }
 
   function createNode(obj) {
@@ -335,6 +346,7 @@ const ObjectFactory = (() => {
     group.on('click tap', (e) => {
       e.cancelBubble = true;
       const tool = App.getState().activeTool;
+      if (tool === 'wall') return; // 벽 도구에서는 무시
       if (tool === 'delete') {
         App.removeObject(obj.id);
         group.destroy();
@@ -435,6 +447,7 @@ const ObjectFactory = (() => {
     group.on('click tap', (e) => {
       e.cancelBubble = true;
       const tool = App.getState().activeTool;
+      if (tool === 'wall') return; // 벽 도구에서는 무시
       if (tool === 'delete') {
         App.removeObject(obj.id);
         group.destroy();
@@ -560,6 +573,7 @@ const ObjectFactory = (() => {
     group.on('click tap', (e) => {
       e.cancelBubble = true;
       const tool = App.getState().activeTool;
+      if (tool === 'wall') return; // 벽 도구에서는 무시
       if (tool === 'delete') {
         App.removeObject(obj.id);
         group.destroy();
