@@ -18,39 +18,60 @@ const TaskFlow = (() => {
   }
 
   /**
-   * 장비의 "작업 위치" 계산
-   * 모든 장비의 무게중심(통로 중심 추정)을 구한 뒤,
-   * 각 장비에서 통로 쪽으로 가장 가까운 변 + STAND_OFFSET 지점 반환
+   * 장비의 "작업 위치" 계산 (회전 고려)
+   * Konva Group은 (obj.x, obj.y)를 기준으로 회전하므로
+   * 실제 중심과 변 방향을 회전각 반영하여 계산
    */
   function getAccessPoint(obj, centroid) {
-    const cx = obj.x + (obj.width || 50) / 2;
-    const cy = obj.y + (obj.height || 50) / 2;
-    const hw = (obj.width || 50) / 2;
-    const hh = (obj.height || 50) / 2;
+    const w = obj.width || 50;
+    const h = obj.height || 50;
+    const rot = (obj.rotation || 0) * Math.PI / 180;
+    const cosR = Math.cos(rot);
+    const sinR = Math.sin(rot);
+
+    // 회전 적용된 실제 중심 (Group은 좌상단 기준 회전)
+    const cx = obj.x + (w / 2) * cosR - (h / 2) * sinR;
+    const cy = obj.y + (w / 2) * sinR + (h / 2) * cosR;
 
     const dx = centroid.x - cx;
     const dy = centroid.y - cy;
 
-    // 어느 변이 통로(centroid) 방향인지 판별
-    if (Math.abs(dx) * hh > Math.abs(dy) * hw) {
-      // 좌/우 변
-      const side = dx > 0 ? 1 : -1;
-      return { x: cx + side * (hw + STAND_OFFSET), y: cy };
+    // 통로 방향을 로컬 좌표계로 변환 (역회전)
+    const ldx = dx * cosR + dy * sinR;
+    const ldy = -dx * sinR + dy * cosR;
+
+    const hw = w / 2;
+    const hh = h / 2;
+
+    // 로컬 좌표에서 가장 가까운 변 판별
+    let lax, lay;
+    if (Math.abs(ldx) * hh > Math.abs(ldy) * hw) {
+      const side = ldx > 0 ? 1 : -1;
+      lax = side * (hw + STAND_OFFSET);
+      lay = 0;
     } else {
-      // 상/하 변
-      const side = dy > 0 ? 1 : -1;
-      return { x: cx, y: cy + side * (hh + STAND_OFFSET) };
+      const side = ldy > 0 ? 1 : -1;
+      lax = 0;
+      lay = side * (hh + STAND_OFFSET);
     }
+
+    // 로컬 → 월드 좌표 변환
+    return {
+      x: cx + lax * cosR - lay * sinR,
+      y: cy + lax * sinR + lay * cosR,
+    };
   }
 
-  /** 태스크에 연결된 장비들의 무게중심 계산 */
+  /** 태스크에 연결된 장비들의 무게중심 계산 (회전 고려) */
   function calcCentroid(tasks, objMap) {
     let sx = 0, sy = 0, cnt = 0;
     for (const t of tasks) {
       const o = objMap.get(t.objectId);
       if (!o) continue;
-      sx += o.x + (o.width || 50) / 2;
-      sy += o.y + (o.height || 50) / 2;
+      const w = o.width || 50, h = o.height || 50;
+      const rot = (o.rotation || 0) * Math.PI / 180;
+      sx += o.x + (w / 2) * Math.cos(rot) - (h / 2) * Math.sin(rot);
+      sy += o.y + (w / 2) * Math.sin(rot) + (h / 2) * Math.cos(rot);
       cnt++;
     }
     if (cnt === 0) return { x: 250, y: 250 };
