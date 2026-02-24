@@ -1,8 +1,11 @@
 /**
  * TaskFlow — 공정 목록 기반 자동 동선 + 메트릭
  * tasks 배열 순서대로 장비 간 화살표 자동 생성
+ * 동선은 장비 중심이 아닌 "작업 위치"(통로 쪽 가장자리) 기준
  */
 const TaskFlow = (() => {
+  const STAND_OFFSET = 25; // 장비 가장자리에서 사람이 서는 거리 (0.5m)
+
   function init() {
     App.on('tasks-changed', redraw);
     App.on('layout-changed', debounce(redraw, 300));
@@ -14,6 +17,46 @@ const TaskFlow = (() => {
     calcMetrics();
   }
 
+  /**
+   * 장비의 "작업 위치" 계산
+   * 모든 장비의 무게중심(통로 중심 추정)을 구한 뒤,
+   * 각 장비에서 통로 쪽으로 가장 가까운 변 + STAND_OFFSET 지점 반환
+   */
+  function getAccessPoint(obj, centroid) {
+    const cx = obj.x + (obj.width || 50) / 2;
+    const cy = obj.y + (obj.height || 50) / 2;
+    const hw = (obj.width || 50) / 2;
+    const hh = (obj.height || 50) / 2;
+
+    const dx = centroid.x - cx;
+    const dy = centroid.y - cy;
+
+    // 어느 변이 통로(centroid) 방향인지 판별
+    if (Math.abs(dx) * hh > Math.abs(dy) * hw) {
+      // 좌/우 변
+      const side = dx > 0 ? 1 : -1;
+      return { x: cx + side * (hw + STAND_OFFSET), y: cy };
+    } else {
+      // 상/하 변
+      const side = dy > 0 ? 1 : -1;
+      return { x: cx, y: cy + side * (hh + STAND_OFFSET) };
+    }
+  }
+
+  /** 태스크에 연결된 장비들의 무게중심 계산 */
+  function calcCentroid(tasks, objMap) {
+    let sx = 0, sy = 0, cnt = 0;
+    for (const t of tasks) {
+      const o = objMap.get(t.objectId);
+      if (!o) continue;
+      sx += o.x + (o.width || 50) / 2;
+      sy += o.y + (o.height || 50) / 2;
+      cnt++;
+    }
+    if (cnt === 0) return { x: 250, y: 250 };
+    return { x: sx / cnt, y: sy / cnt };
+  }
+
   // ── 화살표 자동 그리기 ──
   function drawArrows() {
     const layer = CanvasEditor.getFlowLayer();
@@ -22,25 +65,22 @@ const TaskFlow = (() => {
     const tasks = App.getState().layout.tasks;
     const objects = App.getState().layout.objects;
     const objMap = new Map(objects.map(o => [o.id, o]));
+    const ppm = App.getState().layout.pixelsPerMeter || 50;
+    const centroid = calcCentroid(tasks, objMap);
 
     for (let i = 0; i < tasks.length - 1; i++) {
       const fromObj = objMap.get(tasks[i].objectId);
       const toObj = objMap.get(tasks[i + 1].objectId);
       if (!fromObj || !toObj) continue;
-      if (fromObj.id === toObj.id) continue; // 같은 장비면 화살표 스킵
+      if (fromObj.id === toObj.id) continue;
 
-      const fx = fromObj.x + (fromObj.width || 50) / 2;
-      const fy = fromObj.y + (fromObj.height || 50) / 2;
-      const tx = toObj.x + (toObj.width || 50) / 2;
-      const ty = toObj.y + (toObj.height || 50) / 2;
+      const fp = getAccessPoint(fromObj, centroid);
+      const tp = getAccessPoint(toObj, centroid);
 
-      const mx = (fx + tx) / 2;
-      const my = (fy + ty) / 2;
-      const ppm = App.getState().layout.pixelsPerMeter || 50;
-      const segDist = Math.sqrt((tx - fx) ** 2 + (ty - fy) ** 2) / ppm;
+      const segDist = Math.sqrt((tp.x - fp.x) ** 2 + (tp.y - fp.y) ** 2) / ppm;
 
       layer.add(new Konva.Arrow({
-        points: [fx, fy, tx, ty],
+        points: [fp.x, fp.y, tp.x, tp.y],
         stroke: '#D97756',
         strokeWidth: 2,
         fill: '#D97756',
@@ -51,6 +91,8 @@ const TaskFlow = (() => {
       }));
 
       // 구간 순번 + 거리 라벨
+      const mx = (fp.x + tp.x) / 2;
+      const my = (fp.y + tp.y) / 2;
       const labelText = (i + 1) + '  ' + segDist.toFixed(1) + 'm';
       const lbl = new Konva.Label({ x: mx, y: my - 10 });
       lbl.add(new Konva.Tag({
@@ -70,6 +112,21 @@ const TaskFlow = (() => {
       layer.add(lbl);
     }
 
+    // 작업 위치 표시 (작은 원)
+    const drawnIds = new Set();
+    for (const t of tasks) {
+      const obj = objMap.get(t.objectId);
+      if (!obj || drawnIds.has(obj.id)) continue;
+      drawnIds.add(obj.id);
+      const ap = getAccessPoint(obj, centroid);
+      layer.add(new Konva.Circle({
+        x: ap.x, y: ap.y,
+        radius: 4,
+        fill: '#D97756',
+        opacity: 0.8,
+      }));
+    }
+
     layer.batchDraw();
   }
 
@@ -79,6 +136,7 @@ const TaskFlow = (() => {
     const objects = App.getState().layout.objects;
     const objMap = new Map(objects.map(o => [o.id, o]));
     const ppm = App.getState().layout.pixelsPerMeter || 50;
+    const centroid = calcCentroid(tasks, objMap);
 
     if (tasks.length === 0) {
       App.setMetrics(null);
@@ -105,13 +163,11 @@ const TaskFlow = (() => {
         continue;
       }
 
-      const fx = fromObj.x + (fromObj.width || 50) / 2;
-      const fy = fromObj.y + (fromObj.height || 50) / 2;
-      const tx = toObj.x + (toObj.width || 50) / 2;
-      const ty = toObj.y + (toObj.height || 50) / 2;
+      const fp = getAccessPoint(fromObj, centroid);
+      const tp = getAccessPoint(toObj, centroid);
 
-      const dx = tx - fx;
-      const dy = ty - fy;
+      const dx = tp.x - fp.x;
+      const dy = tp.y - fp.y;
       const dist = Math.sqrt(dx * dx + dy * dy) / ppm;
       totalDistance += dist;
 
@@ -138,7 +194,6 @@ const TaskFlow = (() => {
       directionChanges * 5 + totalDistance * 2
     ));
 
-    // 병목 = 가장 오래 걸리는 태스크
     let bottleneck = null;
     let maxDur = 0;
     for (const t of tasks) {
