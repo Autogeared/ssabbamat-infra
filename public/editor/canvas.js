@@ -51,16 +51,26 @@ const CanvasEditor = (() => {
     });
   }
 
+  function getGridColors() {
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    return {
+      bg: isDark ? '#282838' : '#ffffff',
+      line: isDark ? '#3a3a4a' : '#c8bfb5',
+      text: isDark ? '#6a6a7a' : '#8a7e72',
+    };
+  }
+
   function drawGrid() {
     gridLayer.destroyChildren();
 
     const w = CANVAS_PX;
     const h = CANVAS_PX;
+    const colors = getGridColors();
 
     // 배경
     gridLayer.add(new Konva.Rect({
       x: 0, y: 0, width: w, height: h,
-      fill: '#ffffff',
+      fill: colors.bg,
     }));
 
     // 1m 단위 세로 점선 + 숫자
@@ -68,7 +78,7 @@ const CanvasEditor = (() => {
       const x = m * PPM;
       gridLayer.add(new Konva.Line({
         points: [x, 0, x, h],
-        stroke: '#c8bfb5',
+        stroke: colors.line,
         strokeWidth: 1,
         dash: [4, 4],
       }));
@@ -77,7 +87,7 @@ const CanvasEditor = (() => {
         y: 3,
         text: m + 'm',
         fontSize: 10,
-        fill: '#8a7e72',
+        fill: colors.text,
       }));
     }
 
@@ -86,7 +96,7 @@ const CanvasEditor = (() => {
       const y = m * PPM;
       gridLayer.add(new Konva.Line({
         points: [0, y, w, y],
-        stroke: '#c8bfb5',
+        stroke: colors.line,
         strokeWidth: 1,
         dash: [4, 4],
       }));
@@ -96,7 +106,7 @@ const CanvasEditor = (() => {
           y: y + 3,
           text: m + 'm',
           fontSize: 10,
-          fill: '#8a7e72',
+          fill: colors.text,
         }));
       }
     }

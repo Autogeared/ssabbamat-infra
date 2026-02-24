@@ -34,11 +34,22 @@
       <button class="action-btn" id="btn-save">저장</button>
       <button class="action-btn" id="btn-load">불러오기</button>
       <button class="action-btn" id="btn-export">내보내기</button>
+      <div class="separator"></div>
+      <button class="action-btn" id="btn-theme" title="테마 전환">☀</button>
     </div>
   </header>
 
   <!-- ── 메인 콘텐츠 ── -->
   <main id="workspace">
+    <!-- 좌측 레이어 패널 -->
+    <aside id="layer-panel">
+      <div class="layer-header">
+        <span class="layer-title">레이어</span>
+        <button class="layer-collapse-btn" id="btn-collapse-layers" title="패널 접기">◀</button>
+      </div>
+      <div class="layer-list" id="layer-list"></div>
+    </aside>
+
     <!-- 캔버스 영역 -->
     <div id="canvas-container">
       <div id="konva-container"></div>
@@ -281,6 +292,14 @@
     </div>
   </div>
 
+  <!-- ── 커맨드 팔레트 ── -->
+  <div id="cmd-palette-overlay" style="display:none;">
+    <div id="cmd-palette">
+      <input type="text" id="cmd-search" placeholder="명령어 검색..." autocomplete="off">
+      <div id="cmd-results"></div>
+    </div>
+  </div>
+
   <!-- ── 하단 상태바 ── -->
   <div id="status-bar">
     <span id="status-tool">선택</span>
@@ -316,6 +335,8 @@
   <script src="/workflow/taskflow.js"></script>
   <script src="/ui/toolbar.js"></script>
   <script src="/ui/sidebar.js"></script>
+  <script src="/ui/layers.js"></script>
+  <script src="/ui/command-palette.js"></script>
   <script src="/ui/modal.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {

@@ -45,6 +45,27 @@ const Toolbar = (() => {
     document.getElementById('btn-ai-analyze').addEventListener('click', () => {
       ModalManager.showInsights();
     });
+
+    // 테마 토글
+    const themeBtn = document.getElementById('btn-theme');
+    const saved = localStorage.getItem('ssabbamat-theme');
+    if (saved === 'dark') {
+      document.body.setAttribute('data-theme', 'dark');
+      themeBtn.textContent = '☾';
+    }
+    themeBtn.addEventListener('click', () => {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.body.removeAttribute('data-theme');
+        themeBtn.textContent = '☀';
+        localStorage.setItem('ssabbamat-theme', 'light');
+      } else {
+        document.body.setAttribute('data-theme', 'dark');
+        themeBtn.textContent = '☾';
+        localStorage.setItem('ssabbamat-theme', 'dark');
+      }
+      CanvasEditor.drawGrid();
+    });
   }
 
   return { init };

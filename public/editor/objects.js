@@ -93,6 +93,110 @@ const ObjectFactory = (() => {
     }
   }
 
+  // ── Smart Guides ──
+  const GUIDE_SNAP_THRESHOLD = 5; // px
+  let _guideLines = [];
+  let _cachedBoxes = null;
+
+  function cacheOtherBoxes(excludeId) {
+    const layer = CanvasEditor.getObjectLayer();
+    _cachedBoxes = [];
+    layer.children.forEach(node => {
+      if (node.getClassName() === 'Transformer') return;
+      if (node.id() === excludeId) return;
+      if (!node.visible()) return;
+      const box = node.getClientRect({ relativeTo: layer });
+      _cachedBoxes.push({
+        left: box.x,
+        right: box.x + box.width,
+        top: box.y,
+        bottom: box.y + box.height,
+        cx: box.x + box.width / 2,
+        cy: box.y + box.height / 2,
+      });
+    });
+  }
+
+  function clearGuides() {
+    _guideLines.forEach(l => l.destroy());
+    _guideLines = [];
+    _cachedBoxes = null;
+  }
+
+  function showSmartGuides(group) {
+    // 기존 가이드 제거
+    _guideLines.forEach(l => l.destroy());
+    _guideLines = [];
+
+    if (!_cachedBoxes) return;
+
+    const layer = CanvasEditor.getObjectLayer();
+    const uiLayer = CanvasEditor.getUILayer();
+    const box = group.getClientRect({ relativeTo: layer });
+    const me = {
+      left: box.x,
+      right: box.x + box.width,
+      top: box.y,
+      bottom: box.y + box.height,
+      cx: box.x + box.width / 2,
+      cy: box.y + box.height / 2,
+    };
+
+    const CANVAS = 500; // CANVAS_PX
+    let snapDx = null, snapDy = null;
+
+    for (const other of _cachedBoxes) {
+      // 수직 정렬 (X축)
+      const xPairs = [
+        [me.left, other.left], [me.right, other.right],
+        [me.cx, other.cx],
+        [me.left, other.right], [me.right, other.left],
+      ];
+      for (const [mv, ov] of xPairs) {
+        if (Math.abs(mv - ov) < GUIDE_SNAP_THRESHOLD) {
+          if (snapDx === null) snapDx = ov - mv;
+          _guideLines.push(new Konva.Line({
+            points: [ov, 0, ov, CANVAS],
+            stroke: '#0d99ff',
+            strokeWidth: 1,
+            dash: [4, 4],
+            listening: false,
+          }));
+        }
+      }
+      // 수평 정렬 (Y축)
+      const yPairs = [
+        [me.top, other.top], [me.bottom, other.bottom],
+        [me.cy, other.cy],
+        [me.top, other.bottom], [me.bottom, other.top],
+      ];
+      for (const [mv, ov] of yPairs) {
+        if (Math.abs(mv - ov) < GUIDE_SNAP_THRESHOLD) {
+          if (snapDy === null) snapDy = ov - mv;
+          _guideLines.push(new Konva.Line({
+            points: [0, ov, CANVAS, ov],
+            stroke: '#0d99ff',
+            strokeWidth: 1,
+            dash: [4, 4],
+            listening: false,
+          }));
+        }
+      }
+    }
+
+    // 스냅 적용
+    if (snapDx !== null || snapDy !== null) {
+      group.position({
+        x: group.x() + (snapDx || 0),
+        y: group.y() + (snapDy || 0),
+      });
+    }
+
+    // 가이드 라인 그리기
+    _guideLines.forEach(l => uiLayer.add(l));
+    if (_guideLines.length > 0) uiLayer.batchDraw();
+  }
+
   function init() {
     // Transformer for selection
     transformer = new Konva.Transformer({
@@ -156,24 +260,28 @@ const ObjectFactory = (() => {
     layer.add(group);
     applyHover(group);
 
-    // 드래그 중 10cm 스냅 + 치수 라벨
+    // 드래그 중 스냅 + 스마트 가이드 + 치수 라벨
+    group.on('dragstart', () => { cacheOtherBoxes(obj.id); });
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      showSmartGuides(group);
       showDimLabel(
         `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
         group
       );
     });
     group.on('dragend', () => {
+      clearGuides();
+      CanvasEditor.getUILayer().batchDraw();
       removeDimLabel();
       App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
     });
 
-    // 클릭으로 선택
+    // 클릭으로 선택 (Shift+Click 다중 선택)
     group.on('click tap', (e) => {
       e.cancelBubble = true;
       const tool = App.getState().activeTool;
@@ -185,7 +293,7 @@ const ObjectFactory = (() => {
         History.push();
         return;
       }
-      App.selectObject(obj.id);
+      handleClickSelect(group, obj.id, e);
     });
 
     // 리사이즈 중 치수 라벨
@@ -249,17 +357,21 @@ const ObjectFactory = (() => {
     layer.add(group);
     applyHover(group);
 
+    group.on('dragstart', () => { cacheOtherBoxes(obj.id); });
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      showSmartGuides(group);
       showDimLabel(
         `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
         group
       );
     });
     group.on('dragend', () => {
+      clearGuides();
+      CanvasEditor.getUILayer().batchDraw();
       removeDimLabel();
       App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
@@ -276,7 +388,7 @@ const ObjectFactory = (() => {
         History.push();
         return;
       }
-      App.selectObject(obj.id);
+      handleClickSelect(group, obj.id, e);
     });
 
     group.on('transform', () => {
@@ -364,18 +476,22 @@ const ObjectFactory = (() => {
     layer.add(group);
     applyHover(group);
 
-    // 드래그 중 10cm 스냅 + 치수 라벨
+    // 드래그 중 스냅 + 스마트 가이드 + 치수 라벨
+    group.on('dragstart', () => { cacheOtherBoxes(obj.id); });
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      showSmartGuides(group);
       showDimLabel(
         `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
         group
       );
     });
     group.on('dragend', () => {
+      clearGuides();
+      CanvasEditor.getUILayer().batchDraw();
       removeDimLabel();
       App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
@@ -392,7 +508,7 @@ const ObjectFactory = (() => {
         History.push();
         return;
       }
-      App.selectObject(obj.id);
+      handleClickSelect(group, obj.id, e);
     });
 
     group.on('transform', () => {
@@ -419,6 +535,34 @@ const ObjectFactory = (() => {
     });
 
     return group;
+  }
+
+  /** Shift+Click 다중 선택 처리 */
+  function handleClickSelect(group, id, e) {
+    const shiftKey = e.evt && e.evt.shiftKey;
+    const layer = CanvasEditor.getObjectLayer();
+
+    if (shiftKey) {
+      // 토글 방식 추가/제거
+      const currentNodes = transformer.nodes().slice();
+      const idx = currentNodes.indexOf(group);
+      if (idx !== -1) {
+        currentNodes.splice(idx, 1);
+      } else {
+        currentNodes.push(group);
+      }
+      transformer.nodes(currentNodes);
+      transformer.moveToTop();
+      layer.batchDraw();
+      // App 상태는 마지막 추가된 것으로
+      if (currentNodes.length > 0) {
+        App.selectObject(currentNodes[currentNodes.length - 1].id());
+      } else {
+        App.selectObject(null);
+      }
+    } else {
+      App.selectObject(id);
+    }
   }
 
   function onSelectionChanged(id) {

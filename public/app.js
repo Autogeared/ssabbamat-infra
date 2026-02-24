@@ -124,6 +124,8 @@ const App = (() => {
     TaskFlow.init();
     Toolbar.init();
     Sidebar.init();
+    LayerPanel.init();
+    CommandPalette.init();
     ModalManager.init();
 
     Serializer.autoLoad();
