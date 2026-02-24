@@ -26,6 +26,72 @@ const ObjectFactory = (() => {
   };
 
   let transformer = null;
+  let _dimLabel = null; // 임시 치수 라벨
+
+  const PPM = 50; // 50px = 1m
+
+  /** 호버 프리하이라이트 공통 적용 */
+  function applyHover(group) {
+    let origStroke, origStrokeWidth;
+
+    group.on('mouseenter', () => {
+      // 이미 선택된(Transformer) 객체이면 스킵
+      if (transformer.nodes().indexOf(group) !== -1) return;
+      const shape = group.children && group.children[0];
+      if (!shape) return;
+      origStroke = shape.stroke();
+      origStrokeWidth = shape.strokeWidth();
+      shape.stroke('#0d99ff');
+      shape.strokeWidth(2);
+      group.getLayer().batchDraw();
+    });
+
+    group.on('mouseleave', () => {
+      const shape = group.children && group.children[0];
+      if (!shape) return;
+      if (origStroke !== undefined) shape.stroke(origStroke);
+      if (origStrokeWidth !== undefined) shape.strokeWidth(origStrokeWidth);
+      origStroke = undefined;
+      origStrokeWidth = undefined;
+      group.getLayer().batchDraw();
+    });
+  }
+
+  /** 드래그/리사이즈 치수 라벨 생성 */
+  function showDimLabel(text, group) {
+    removeDimLabel();
+    const uiLayer = CanvasEditor.getUILayer();
+    _dimLabel = new Konva.Label({ listening: false });
+    _dimLabel.add(new Konva.Tag({
+      fill: 'rgba(44,36,24,0.85)',
+      cornerRadius: 4,
+      pointerDirection: 'up',
+      pointerWidth: 6,
+      pointerHeight: 4,
+    }));
+    _dimLabel.add(new Konva.Text({
+      text: text,
+      fontSize: 11,
+      fill: '#fff',
+      padding: 4,
+    }));
+    // 객체 아래 중앙
+    const box = group.getClientRect({ relativeTo: group.getLayer() });
+    _dimLabel.position({
+      x: box.x + box.width / 2,
+      y: box.y + box.height + 8,
+    });
+    uiLayer.add(_dimLabel);
+    uiLayer.batchDraw();
+  }
+
+  function removeDimLabel() {
+    if (_dimLabel) {
+      _dimLabel.destroy();
+      _dimLabel = null;
+      CanvasEditor.getUILayer().batchDraw();
+    }
+  }
 
   function init() {
     // Transformer for selection
@@ -88,15 +154,21 @@ const ObjectFactory = (() => {
     group.add(rect);
     group.add(text);
     layer.add(group);
+    applyHover(group);
 
-    // 드래그 중 10cm 스냅
+    // 드래그 중 10cm 스냅 + 치수 라벨
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      showDimLabel(
+        `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
+        group
+      );
     });
     group.on('dragend', () => {
+      removeDimLabel();
       App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
     });
@@ -116,8 +188,19 @@ const ObjectFactory = (() => {
       App.selectObject(obj.id);
     });
 
+    // 리사이즈 중 치수 라벨
+    group.on('transform', () => {
+      const curW = Math.max(10, rect.width() * group.scaleX());
+      const curH = Math.max(10, rect.height() * group.scaleY());
+      showDimLabel(
+        `${(curW / PPM).toFixed(1)}m × ${(curH / PPM).toFixed(1)}m`,
+        group
+      );
+    });
+
     // Transformer 리사이즈 반영
     group.on('transformend', () => {
+      removeDimLabel();
       const scaleX = group.scaleX();
       const scaleY = group.scaleY();
       const newW = Math.max(10, rect.width() * scaleX);
@@ -164,14 +247,20 @@ const ObjectFactory = (() => {
 
     group.add(line);
     layer.add(group);
+    applyHover(group);
 
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      showDimLabel(
+        `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
+        group
+      );
     });
     group.on('dragend', () => {
+      removeDimLabel();
       App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
     });
@@ -190,7 +279,16 @@ const ObjectFactory = (() => {
       App.selectObject(obj.id);
     });
 
+    group.on('transform', () => {
+      const pts = line.points();
+      const curW = Math.abs(pts[2] - pts[0]) * group.scaleX();
+      const curH = Math.abs(pts[3] - pts[1]) * group.scaleY();
+      const len = Math.max(curW, curH);
+      showDimLabel(`${(len / PPM).toFixed(1)}m`, group);
+    });
+
     group.on('transformend', () => {
+      removeDimLabel();
       const scaleX = group.scaleX();
       const scaleY = group.scaleY();
       const pts = line.points();
@@ -264,15 +362,21 @@ const ObjectFactory = (() => {
     group.add(text);
     group.add(timeText);
     layer.add(group);
+    applyHover(group);
 
-    // 드래그 중 10cm 스냅
+    // 드래그 중 10cm 스냅 + 치수 라벨
     group.on('dragmove', () => {
       group.position({
         x: CanvasEditor.snapToGrid(group.x()),
         y: CanvasEditor.snapToGrid(group.y()),
       });
+      showDimLabel(
+        `(${(group.x() / PPM).toFixed(1)}m, ${(group.y() / PPM).toFixed(1)}m)`,
+        group
+      );
     });
     group.on('dragend', () => {
+      removeDimLabel();
       App.updateObject(obj.id, { x: group.x(), y: group.y() });
       History.push();
     });
@@ -291,7 +395,14 @@ const ObjectFactory = (() => {
       App.selectObject(obj.id);
     });
 
+    group.on('transform', () => {
+      const curR = Math.min(obj.width || 80, obj.height || 80) / 2 * Math.max(group.scaleX(), group.scaleY());
+      const d = curR * 2;
+      showDimLabel(`${(d / PPM).toFixed(1)}m × ${(d / PPM).toFixed(1)}m`, group);
+    });
+
     group.on('transformend', () => {
+      removeDimLabel();
       const scaleX = group.scaleX();
       const scaleY = group.scaleY();
       group.scaleX(1);

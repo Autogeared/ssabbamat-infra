@@ -42,7 +42,6 @@
     <!-- 캔버스 영역 -->
     <div id="canvas-container">
       <div id="konva-container"></div>
-      <div id="zoom-info">100%</div>
     </div>
 
     <!-- 우측 사이드바 -->
@@ -280,6 +279,31 @@
         <button class="action-btn" data-close>닫기</button>
       </div>
     </div>
+  </div>
+
+  <!-- ── 하단 상태바 ── -->
+  <div id="status-bar">
+    <span id="status-tool">선택</span>
+    <span class="status-sep">|</span>
+    <span id="status-pos">X: 0.0m  Y: 0.0m</span>
+    <span class="status-sep">|</span>
+    <span id="status-grid">그리드 10cm</span>
+    <span class="status-sep">|</span>
+    <span id="status-zoom">100%</span>
+  </div>
+
+  <!-- ── 우클릭 컨텍스트 메뉴 ── -->
+  <div id="context-menu" style="display:none;">
+    <div class="ctx-item" data-action="copy">복사 <kbd>Ctrl+C</kbd></div>
+    <div class="ctx-item" data-action="paste">붙여넣기 <kbd>Ctrl+V</kbd></div>
+    <div class="ctx-item" data-action="duplicate">복제</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" data-action="rotate">90° 회전 <kbd>R</kbd></div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" data-action="bringToFront">맨 앞으로</div>
+    <div class="ctx-item" data-action="sendToBack">맨 뒤로</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item ctx-danger" data-action="delete">삭제 <kbd>Del</kbd></div>
   </div>
 
   <!-- JS 모듈 -->

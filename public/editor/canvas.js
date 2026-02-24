@@ -175,6 +175,17 @@ const CanvasEditor = (() => {
         container.style.cursor = spaceDown ? 'grab' : '';
       }
     });
+
+    // 상태바: 마우스 좌표 실시간 업데이트
+    stage.on('mousemove', () => {
+      const posEl = document.getElementById('status-pos');
+      if (!posEl) return;
+      const ptr = getCanvasPointer();
+      if (!ptr) return;
+      const mx = (ptr.x / PPM).toFixed(1);
+      const my = (ptr.y / PPM).toFixed(1);
+      posEl.textContent = `X: ${mx}m  Y: ${my}m`;
+    });
   }
 
   function setupResize() {
@@ -188,7 +199,8 @@ const CanvasEditor = (() => {
   }
 
   function updateZoomInfo() {
-    document.getElementById('zoom-info').textContent = Math.round(scale * 100) + '%';
+    const el = document.getElementById('status-zoom');
+    if (el) el.textContent = Math.round(scale * 100) + '%';
   }
 
   // 10cm (5px) 단위 스냅

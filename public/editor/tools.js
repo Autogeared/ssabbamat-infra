@@ -15,7 +15,10 @@ const Tools = (() => {
     setupCanvasClick();
     setupDrop();
     setupKeyboard();
+    setupContextMenu();
   }
+
+  const TOOL_LABELS = { select: '선택', wall: '벽 그리기', place: '배치', delete: '삭제' };
 
   function onToolChanged(tool) {
     const stage = CanvasEditor.getStage();
@@ -42,6 +45,10 @@ const Tools = (() => {
       case 'place': container.style.cursor = 'copy'; break;
       case 'delete': container.style.cursor = 'not-allowed'; break;
     }
+
+    // 상태바 도구명 업데이트
+    const toolEl = document.getElementById('status-tool');
+    if (toolEl) toolEl.textContent = TOOL_LABELS[tool] || tool;
 
     // 선택 도구가 아닌 경우 선택 해제
     if (tool !== 'select') {
@@ -363,16 +370,12 @@ const Tools = (() => {
     History.push();
   }
 
-  // ── 간단한 토스트 메시지 ──
+  // ── 간단한 토스트 메시지 (CSS 기반) ──
   function showToast(msg) {
     let toast = document.getElementById('tool-toast');
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'tool-toast';
-      toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);' +
-        'background:#2c2418;border:1px solid #d9d1c7;color:#fff;padding:8px 18px;' +
-        'border-radius:8px;font-size:13px;z-index:2000;pointer-events:none;' +
-        'transition:opacity 0.3s;';
       document.body.appendChild(toast);
     }
     toast.textContent = msg;
@@ -380,6 +383,135 @@ const Tools = (() => {
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
   }
+
+  // ── 컨텍스트 메뉴 ──
+  function setupContextMenu() {
+    const menu = document.getElementById('context-menu');
+    if (!menu) return;
+    const stage = CanvasEditor.getStage();
+
+    // 우클릭 이벤트
+    stage.on('contextmenu', (e) => {
+      e.evt.preventDefault();
+      const target = e.target;
+      const isStage = target === stage;
+
+      // 객체 위 우클릭 → 선택
+      if (!isStage) {
+        const group = target.findAncestor('Group') || target;
+        if (group.id && group.id()) {
+          App.selectObject(group.id());
+        }
+      }
+
+      const hasSelection = !!App.getState().selectedObjectId;
+
+      // 항목 활성화/비활성화
+      menu.querySelectorAll('.ctx-item').forEach(item => {
+        const action = item.dataset.action;
+        if (action === 'paste') {
+          item.classList.toggle('ctx-disabled', !clipboard);
+        } else if (action !== 'paste') {
+          if (!hasSelection && action !== 'paste') {
+            item.classList.toggle('ctx-disabled', !hasSelection);
+          } else {
+            item.classList.remove('ctx-disabled');
+          }
+        }
+      });
+
+      // 위치 및 표시
+      const x = e.evt.clientX;
+      const y = e.evt.clientY;
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+      menu.style.display = 'block';
+
+      // 화면 밖 보정
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) menu.style.left = (x - rect.width) + 'px';
+      if (rect.bottom > window.innerHeight) menu.style.top = (y - rect.height) + 'px';
+    });
+
+    // 메뉴 항목 클릭
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('.ctx-item');
+      if (!item || item.classList.contains('ctx-disabled')) return;
+      const action = item.dataset.action;
+      hideContextMenu();
+
+      switch (action) {
+        case 'copy': copySelected(); break;
+        case 'paste': pasteClipboard(); break;
+        case 'duplicate': duplicateSelected(); break;
+        case 'rotate': rotateSelected(); break;
+        case 'bringToFront': bringToFront(); break;
+        case 'sendToBack': sendToBack(); break;
+        case 'delete': deleteSelected(); break;
+      }
+    });
+
+    // 메뉴 닫기: 문서 클릭 / ESC
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target)) hideContextMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideContextMenu();
+    });
+  }
+
+  function hideContextMenu() {
+    const menu = document.getElementById('context-menu');
+    if (menu) menu.style.display = 'none';
+  }
+
+  // ── 복제 (copy + paste 즉시) ──
+  function duplicateSelected() {
+    const id = App.getState().selectedObjectId;
+    if (!id) return;
+    const obj = App.getState().layout.objects.find(o => o.id === id);
+    if (!obj) return;
+    const newObj = JSON.parse(JSON.stringify(obj));
+    newObj.id = App.genId();
+    newObj.x = CanvasEditor.snapToGrid(newObj.x + 25);
+    newObj.y = CanvasEditor.snapToGrid(newObj.y + 25);
+    App.addObject(newObj);
+    ObjectFactory.createNode(newObj);
+    App.selectObject(newObj.id);
+    History.push();
+    showToast('복제됨');
+  }
+
+  // ── 맨 앞으로 ──
+  function bringToFront() {
+    const id = App.getState().selectedObjectId;
+    if (!id) return;
+    const node = ObjectFactory.findNode(id);
+    if (node) {
+      node.moveToTop();
+      // Transformer는 항상 최상위
+      const layer = CanvasEditor.getObjectLayer();
+      const tf = layer.findOne('Transformer');
+      if (tf) tf.moveToTop();
+      layer.batchDraw();
+      showToast('맨 앞으로');
+    }
+  }
+
+  // ── 맨 뒤로 ──
+  function sendToBack() {
+    const id = App.getState().selectedObjectId;
+    if (!id) return;
+    const node = ObjectFactory.findNode(id);
+    if (node) {
+      node.moveToBottom();
+      CanvasEditor.getObjectLayer().batchDraw();
+      showToast('맨 뒤로');
+    }
+  }
+
+  // showToast를 전역으로 노출
+  window.showToast = showToast;
 
   return { init };
 })();
