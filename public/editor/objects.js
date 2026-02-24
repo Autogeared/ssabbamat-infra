@@ -7,12 +7,14 @@ const ObjectFactory = (() => {
     wall:       { w: 200, h: 0, color: '#222222', label: '벽' },
     door:       { w: 50, h: 5, color: '#7DB87D', label: '문' },
     window:     { w: 50, h: 5, color: '#89AFC4', label: '창문' },
-    counter:    { w: 150, h: 50, color: '#A67C52', label: '카운터' },
-    'gas-range':{ w: 50, h: 50, color: '#D97756', label: '가스레인지' },
-    sink:       { w: 50, h: 50, color: '#6A9AB5', label: '싱크대' },
-    'prep-table':{ w: 100, h: 50, color: '#C4976A', label: '조리대' },
-    fridge:     { w: 50, h: 50, color: '#5B8FA8', label: '냉장고' },
-    storage:    { w: 50, h: 50, color: '#7A6E62', label: '보관함' },
+    'pickup-zone':    { w: 100, h: 60, color: '#5B8FA8', label: '픽업존' },
+    sink:             { w: 60, h: 50, color: '#6A9AB5', label: '싱크대' },
+    'egg-prep':       { w: 80, h: 50, color: '#D97756', label: '계란조리대' },
+    'meat-fridge':    { w: 60, h: 60, color: '#4A8FA8', label: '고기냉장고' },
+    'induction-spin': { w: 60, h: 60, color: '#C75D3A', label: '인덕션통돌이' },
+    'sauce-station':  { w: 70, h: 50, color: '#E5A84B', label: '소스투입대' },
+    'cabbage-storage':{ w: 60, h: 60, color: '#7DB87D', label: '양배추보관고' },
+    'rice-cooker':    { w: 50, h: 50, color: '#9B7DB8', label: '밥통' },
   };
 
   const STATION_META = {

@@ -99,9 +99,11 @@ const Sidebar = (() => {
 
   function fillProperties(obj) {
     const typeLabels = {
-      wall: '벽', door: '문', window: '창문', counter: '카운터',
-      'gas-range': '가스레인지', sink: '싱크대', 'prep-table': '조리대',
-      fridge: '냉장고', storage: '보관함',
+      wall: '벽', door: '문', window: '창문',
+      'pickup-zone': '픽업존', sink: '싱크대', 'egg-prep': '계란조리대',
+      'meat-fridge': '고기냉장고', 'induction-spin': '인덕션통돌이',
+      'sauce-station': '소스투입대', 'cabbage-storage': '양배추보관고',
+      'rice-cooker': '밥통',
     };
 
     document.getElementById('prop-type').textContent = typeLabels[obj.type] || obj.type;

@@ -26,14 +26,16 @@ const CommandPalette = (() => {
     // 분석
     { id: 'ai-insights',  label: 'AI 분석',       shortcut: '',        category: '분석', action: () => ModalManager.showInsights() },
     // 장비 배치
-    { id: 'add-counter',   label: '카운터 추가',    shortcut: '', category: '장비', action: () => addEquipment('counter') },
-    { id: 'add-gas-range', label: '가스레인지 추가', shortcut: '', category: '장비', action: () => addEquipment('gas-range') },
-    { id: 'add-sink',      label: '싱크대 추가',    shortcut: '', category: '장비', action: () => addEquipment('sink') },
-    { id: 'add-prep-table',label: '조리대 추가',    shortcut: '', category: '장비', action: () => addEquipment('prep-table') },
-    { id: 'add-fridge',    label: '냉장고 추가',    shortcut: '', category: '장비', action: () => addEquipment('fridge') },
-    { id: 'add-storage',   label: '보관함 추가',    shortcut: '', category: '장비', action: () => addEquipment('storage') },
-    { id: 'add-door',      label: '문 추가',        shortcut: '', category: '장비', action: () => addEquipment('door') },
-    { id: 'add-window',    label: '창문 추가',      shortcut: '', category: '장비', action: () => addEquipment('window') },
+    { id: 'add-pickup-zone',    label: '픽업존 추가',       shortcut: '', category: '장비', action: () => addEquipment('pickup-zone') },
+    { id: 'add-sink',           label: '싱크대 추가',       shortcut: '', category: '장비', action: () => addEquipment('sink') },
+    { id: 'add-egg-prep',       label: '계란조리대 추가',   shortcut: '', category: '장비', action: () => addEquipment('egg-prep') },
+    { id: 'add-meat-fridge',    label: '고기냉장고 추가',   shortcut: '', category: '장비', action: () => addEquipment('meat-fridge') },
+    { id: 'add-induction-spin', label: '인덕션통돌이 추가', shortcut: '', category: '장비', action: () => addEquipment('induction-spin') },
+    { id: 'add-sauce-station',  label: '소스투입대 추가',   shortcut: '', category: '장비', action: () => addEquipment('sauce-station') },
+    { id: 'add-cabbage-storage',label: '양배추보관고 추가', shortcut: '', category: '장비', action: () => addEquipment('cabbage-storage') },
+    { id: 'add-rice-cooker',    label: '밥통 추가',         shortcut: '', category: '장비', action: () => addEquipment('rice-cooker') },
+    { id: 'add-door',           label: '문 추가',           shortcut: '', category: '장비', action: () => addEquipment('door') },
+    { id: 'add-window',         label: '창문 추가',         shortcut: '', category: '장비', action: () => addEquipment('window') },
     // 보기
     { id: 'view-theme',   label: '테마 전환',     shortcut: '',        category: '보기', action: () => document.getElementById('btn-theme').click() },
   ];
